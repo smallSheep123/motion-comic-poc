@@ -1,0 +1,21 @@
+{
+  "crossfade_sec": 0.8,
+  "shots": [
+    {
+      "page": "pages/page1.png",
+      "duration": 4.0,
+      "comment": "全景缓推至龙脸特写（focus bbox 来自视觉分析+安全边距），坐标基于1200x1800画布",
+      "camera_scale": 1.15,
+      "start_rect": [86, 4, 1114, 1037],
+      "end_rect": [655, 370, 1195, 1326]
+    },
+    {
+      "page": "pages/page2.png",
+      "duration": 4.0,
+      "comment": "长条漫自上而下扫读三段叙事（pan_down）",
+      "camera_scale": 1.15,
+      "start_rect": [225, 0, 975, 1333],
+      "end_rect": [225, 467, 975, 1800]
+    }
+  ]
+}
