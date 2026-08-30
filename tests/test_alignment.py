@@ -7,7 +7,12 @@ import wave
 
 from PIL import Image
 
-from motion_comic.alignment import apply_page_alignment, validate_segments
+from motion_comic.alignment import (
+    apply_page_alignment,
+    apply_page_timeline,
+    validate_page_timeline,
+    validate_segments,
+)
 from motion_comic.compiler import compile_script
 from motion_comic.renderer import rooted_audio_tracks
 from gui.timeline_editor import build_editor_data, save_alignment
@@ -93,13 +98,74 @@ class TestAlignment(unittest.TestCase):
             self.assertEqual(data["pages"][0]["source"], {"kind": "file", "path": "audio/p0.wav"})
             result = save_alignment(root, {
                 "page": "p0.png", "source": {"kind": "file", "path": "audio/p0.wav"},
-                "audio_duration": 5.0, "segments": self.segments,
+                "audio_duration": 5.0,
+                "audio_clips": [
+                    {"id": "a1", "source_start": 0.4, "source_end": 2.4,
+                     "timeline_start": 0.0, "text": "第一句。"},
+                    {"id": "a2", "source_start": 2.4, "source_end": 4.2,
+                     "timeline_start": 2.5, "text": "第二句。"},
+                    {"id": "a3", "source_start": 4.2, "source_end": 5.0,
+                     "timeline_start": 4.3, "text": "补充分段。"},
+                ],
+                "visual_clips": [
+                    {"shot_id": "p0_a", "timeline_start": 0.0, "timeline_end": 3.0},
+                    {"shot_id": "p0_b", "timeline_start": 3.0, "timeline_end": 5.1},
+                ],
             })
             self.assertTrue(result["ok"])
             self.assertEqual(os.path.getsize(audio), before_size)
             with open(os.path.join(root, "timeline_alignment.json"), encoding="utf-8") as file:
                 saved = json.load(file)
-            self.assertEqual(saved["pages"]["p0.png"]["segments"][0]["source_start"], 0.4)
+            page = saved["pages"]["p0.png"]
+            self.assertEqual(saved["version"], 2)
+            self.assertEqual(len(page["audio_clips"]), 3)
+            self.assertEqual(page["visual_clips"][0]["timeline_end"], 3.0)
+
+    def test_v2_tracks_are_independent_and_compile_silence(self):
+        audio = [
+            {"id": "a1", "source_start": 0.0, "source_end": 1.0,
+             "timeline_start": 0.0, "text": "一。"},
+            {"id": "a2", "source_start": 1.0, "source_end": 2.0,
+             "timeline_start": 1.5, "text": "二。"},
+            {"id": "a3", "source_start": 2.0, "source_end": 3.0,
+             "timeline_start": 2.5, "text": "三。"},
+        ]
+        visuals = [
+            {"shot_id": "p0_a", "timeline_start": 0.0, "timeline_end": 2.2},
+            {"shot_id": "p0_b", "timeline_start": 2.2, "timeline_end": 3.5},
+        ]
+        clean_audio, clean_visuals = validate_page_timeline(
+            audio, visuals, ["p0_a", "p0_b"], 3.0)
+        self.assertEqual(len(clean_audio), 3)
+        self.assertEqual(len(clean_visuals), 2)
+
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, "pages"))
+            Image.new("RGB", (90, 160), "white").save(os.path.join(root, "pages", "p0.png"))
+            page_director = dict(self.director, shots=self.director["shots"][:2])
+            updated, _, _ = apply_page_timeline(
+                page_director, "p0.png", "audio/p0.wav", audio, visuals, 3.0)
+            timeline = compile_script(updated, root=root)
+            self.assertEqual(len(timeline["shots"]), 2)
+            self.assertEqual(len(timeline["audio_tracks"]), 3)
+            self.assertEqual([t["start"] for t in timeline["audio_tracks"]], [0.0, 1.5, 2.5])
+            self.assertEqual([s["transition_out"] for s in timeline["shots"]], ["CUT", "CUT"])
+            self.assertEqual([s["duration"] for s in timeline["shots"]], [2.2, 1.3])
+
+    def test_v2_rejects_overlapping_audio_and_non_contiguous_visuals(self):
+        audio = [
+            {"source_start": 0.0, "source_end": 1.0, "timeline_start": 0.0},
+            {"source_start": 1.0, "source_end": 2.0, "timeline_start": 0.8},
+        ]
+        visuals = [
+            {"shot_id": "p0_a", "timeline_start": 0.0, "timeline_end": 1.0},
+            {"shot_id": "p0_b", "timeline_start": 1.2, "timeline_end": 2.0},
+        ]
+        with self.assertRaisesRegex(ValueError, "重叠"):
+            validate_page_timeline(audio, visuals, ["p0_a", "p0_b"], 2.0)
+        audio[1]["timeline_start"] = 1.0
+        with self.assertRaisesRegex(ValueError, "首尾连续"):
+            validate_page_timeline(audio, visuals, ["p0_a", "p0_b"], 2.0)
 
 
 if __name__ == "__main__":

@@ -59,31 +59,39 @@ python -m unittest discover -s tests               # 回归测试
 python gui/timeline_editor.py --work real_manga2
 ```
 
-新版工作台把两个时间概念分开显示：
+新版工作台在同一条成片时间尺上显示两条相互独立的轨道：
 
-- **源音频轨**：显示整页波形。每个画面片段都有独立入点 / 出点，可拖动两侧手柄；
-- **输出画面轨**：显示成片顺序。紫色区域是语音后的无声停留，红色区域是与下一画面的转场重叠；
-- **页内细分**：同一页拆出的多个 bbox 分别绑定一段解说，画面框、缩略图、文字和时间块联动选择；
+- **配音轨**：蓝色块两侧分别裁源音频入点 / 出点，拖动整块可移动该段及后续配音；
+  配音片段之间的紫色斜纹是真正的无声留白；
+- **画面轨**：每个切分 bbox 对应一个连续画面块，拖动橙色分界即可单独改变前后画面的持续时间，
+  不要求与配音切分点一一对齐；
+- **任意细分**：播放头放进配音块后可新增切分点，因此可以出现“4 段配音 / 3 张画面”；
+- **整页预览**：预览始终保留漫画原页，所有 bbox 以蓝框显示，当前输出画面随播放头切换为橙框；
+- **留白保持画面**：在配音段后插入留白时，当前画面默认延长，不会自动跳到下一张；
 - **非破坏式保存**：原始 IndexTTS 音频不会被裁切覆盖。编辑决定写入
   `timeline_alignment.json`，并同步更新 `director.json` 的编译字段；
 - **兼容旧产物**：若现有流程仍是“按页生成、静音切成多个 shot wav”，编辑器会把同页 wav
   在浏览器中拼成连续波形；保存时生成一个独立页级工作副本。
 
+当前版本把画面切换统一保存为 `CUT`，界面暂不暴露转场效果，先把音画节奏与留白编辑做稳定。
+
 时间映射字段如下：
 
 ```json
 {
-  "shot_id": "shot_00_01",
-  "source_start": 3.42,
-  "source_end": 6.88,
-  "gap_after": 0.35,
-  "transition_out": "CROSSFADE",
-  "transition_duration": 0.45
+  "audio_clips": [
+    {"id": "audio_1", "source_start": 0.0, "source_end": 3.42, "timeline_start": 0.0},
+    {"id": "audio_2", "source_start": 3.42, "source_end": 6.88, "timeline_start": 3.92}
+  ],
+  "visual_clips": [
+    {"shot_id": "shot_00_01", "timeline_start": 0.0, "timeline_end": 4.60},
+    {"shot_id": "shot_00_02", "timeline_start": 4.60, "timeline_end": 7.38}
+  ]
 }
 ```
 
-其中 `source_start/source_end` 只决定从页级配音中取哪一段；`gap_after` 会在下一句
-开始前加入留白；`transition_duration` 只控制画面重叠，不会吞掉设定的留白。
+其中第二段配音从成片 `3.92s` 开始，因此前面自动形成 `0.50s` 留白；第一张画面则独立保持到
+`4.60s`。`source_start/source_end` 只引用页级原始配音，不改写源文件。
 
 ## 目录
 
@@ -92,7 +100,7 @@ motion_comic/          引擎包：schema(词表校验) / compiler(相机求解+
                       / renderer(渲染) / subtitles(字幕配音导出) / audio / cli
 renderers/reference_pil.py   冻结的 PoC 渲染器（对照调试用）
 examples/              director.json 示例 + 演示配音脚本
-tests/                 compiler 回归测试（11 例，纯逻辑不碰 ffmpeg）
+tests/                 compiler / 音画时间轴回归测试（25 例，纯逻辑不碰 ffmpeg）
 gen_pages.py           测试页生成器 + ground_truth.json（视觉精度基准）
 output/episode.mp4     演示成片（3 镜：缓推特写→长条下扫→拉远收尾，真人声解说）
 ```

@@ -114,6 +114,8 @@ def overlap_sec(transition: str, crossfade_sec: float, transition_sec: float | N
 def resolve_duration(shot: dict, root: str) -> tuple[float, float]:
     """返回 (镜头时长, 语音实测时长或0)。优先级：fixed > voice+pad，最后不低于 min_duration。"""
     narr = shot.get("narration") or {}
+    if shot.get("fixed_duration") and narr.get("timeline_managed"):
+        return float(shot["fixed_duration"]), 0.0
     wav = narr.get("audio")
     dur = 0.0
     if wav:
@@ -176,6 +178,7 @@ def compile_script(director: dict, root: str = ".") -> dict:
     allow_zoom = bool(director.get("allow_zoom", False))
 
     shots_out, audio_tracks = [], []
+    shot_start_by_id = {}
     g = 0.0  # 当前全局时间戳
     for idx, sh in enumerate(director["shots"]):
         page_path = os.path.join(root, sh["page"])
@@ -248,8 +251,10 @@ def compile_script(director: dict, root: str = ".") -> dict:
                                      "source_start": round(float(narr.get("source_start", 0.0)), 3),
                                      "source_duration": round(speech_dur, 3)})
 
+        shot_id = sh.get("id", f"shot_{idx+1:03d}")
+        shot_start_by_id[shot_id] = round(g, 3)
         shots_out.append({
-            "id": sh.get("id", f"shot_{idx+1:03d}"),
+            "id": shot_id,
             "page": sh["page"], "page_size": [W, H],
             "motion": motion, "transition_out": transition,
             "transition_duration": round(transition_duration, 3),
@@ -263,6 +268,19 @@ def compile_script(director: dict, root: str = ".") -> dict:
             "fit": pin_fit,
         })
         g += duration - transition_duration
+
+    if director.get("audio_timeline"):
+        for track in director["audio_timeline"]:
+            anchor = track.get("anchor_shot_id")
+            if anchor not in shot_start_by_id:
+                raise ValueError(f"audio_timeline 的 anchor_shot_id 不存在: {anchor}")
+            audio_tracks.append({
+                "shot_id": anchor,
+                "file": track["file"],
+                "start": round(shot_start_by_id[anchor] + float(track.get("start_offset", 0.0)), 3),
+                "source_start": round(float(track.get("source_start", 0.0)), 3),
+                "source_duration": round(float(track["source_duration"]), 3),
+            })
 
     total = shots_out[-1]["global_start"] + shots_out[-1]["duration"]
     return {

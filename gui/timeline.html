@@ -3,437 +3,128 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>画面与配音同步工作台</title>
+<title>音画同步工作台</title>
 <style>
-  :root {
-    color-scheme: dark;
-    --bg: #101114; --panel: #17191e; --panel2: #1d2026; --line: #2d313a;
-    --text: #eef0f4; --muted: #9299a8; --blue: #56a8ff; --orange: #ffb45c;
-    --green: #66d19e; --red: #ff6b6b; --purple: #9d8cff;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; overflow: hidden; }
-  body { background: var(--bg); color: var(--text); font: 13px/1.45 "Segoe UI", "Microsoft YaHei", sans-serif; }
-  button, input, select { font: inherit; }
-  button { color: var(--text); background: #282c34; border: 1px solid #3a3f49; border-radius: 7px; padding: 7px 12px; cursor: pointer; }
-  button:hover { background: #343944; }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  button.primary { background: #2f75c9; border-color: #4b94e8; }
-  button.primary:hover { background: #3983d7; }
-  button.ghost { background: transparent; }
-  input, select { color: var(--text); background: #111318; border: 1px solid #363b45; border-radius: 6px; padding: 6px 8px; min-width: 0; }
-  input:focus, select:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
-  .app { height: 100%; display: grid; grid-template-rows: 54px minmax(270px, 1fr) 330px 28px; }
-  .topbar { display: flex; align-items: center; gap: 9px; padding: 0 14px; background: #181a1f; border-bottom: 1px solid var(--line); }
-  .brand { font-size: 16px; font-weight: 650; margin-right: 8px; white-space: nowrap; }
-  .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 400; letter-spacing: .08em; }
-  .source-wrap { display: flex; align-items: center; gap: 7px; min-width: 230px; max-width: 480px; flex: 1; }
-  .source-wrap label { color: var(--muted); white-space: nowrap; }
-  #audioSource { width: 100%; }
-  .top-spacer { flex: 1; }
-  .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
-  .toggle input { accent-color: var(--blue); }
-  .workspace { min-height: 0; display: grid; grid-template-columns: 154px minmax(330px, 1fr) 310px; }
-  .pages { background: #15171b; border-right: 1px solid var(--line); overflow-y: auto; padding: 10px; }
-  .pages-head { color: var(--muted); font-size: 11px; letter-spacing: .08em; padding: 2px 3px 8px; }
-  .page-card { width: 100%; display: grid; grid-template-columns: 54px 1fr; gap: 8px; text-align: left; padding: 6px; margin-bottom: 7px; background: transparent; border-color: transparent; }
-  .page-card:hover { background: #20232a; }
-  .page-card.active { background: #252a33; border-color: #4b88c8; }
-  .page-card img { width: 54px; height: 72px; object-fit: cover; border-radius: 4px; background: #0b0c0f; }
-  .page-meta { min-width: 0; align-self: center; }
-  .page-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-  .page-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
-  .saved-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #505662; margin-right: 4px; }
-  .saved-dot.on { background: var(--green); box-shadow: 0 0 8px rgba(102,209,158,.5); }
-  .viewer { min-width: 0; min-height: 0; display: grid; place-items: center; padding: 14px; overflow: hidden; background: radial-gradient(circle at 50% 30%, #242832, #121318 70%); }
-  .viewer-shell { height: 100%; max-height: 100%; max-width: 100%; aspect-ratio: 9/16; position: relative; background: #08090b; border: 1px solid #383d47; box-shadow: 0 18px 50px rgba(0,0,0,.42); overflow: hidden; }
-  #pageImage { width: 100%; height: 100%; object-fit: contain; display: block; opacity: .75; }
-  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
-  #overlay rect { fill: rgba(86,168,255,.07); stroke: var(--blue); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; }
-  #overlay rect.selected { fill: rgba(255,180,92,.18); stroke: var(--orange); stroke-width: 3; }
-  #previewCrop { position: absolute; inset: 0; display: none; background: #0c0d10 no-repeat; }
-  .viewer-badge { position: absolute; left: 9px; top: 9px; padding: 4px 8px; border-radius: 5px; background: rgba(10,11,14,.76); color: #d6d9df; font-size: 11px; backdrop-filter: blur(8px); }
-  .inspector { background: var(--panel); border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; }
-  .inspector h2 { font-size: 14px; margin: 0 0 3px; }
-  .shot-id { color: var(--muted); font-family: Consolas, monospace; font-size: 11px; margin-bottom: 13px; }
-  .field { margin-bottom: 12px; }
-  .field label { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
-  .field input, .field select { width: 100%; }
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .narration { padding: 10px; min-height: 72px; background: #121419; border: 1px solid var(--line); border-radius: 7px; color: #d8dbe2; }
-  .stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin: 12px 0; }
-  .stat { background: #20232a; border: 1px solid #2f333c; border-radius: 7px; padding: 8px; }
-  .stat span { display: block; color: var(--muted); font-size: 10px; }
-  .stat b { display: block; font-size: 14px; margin-top: 2px; }
-  .legend { border-top: 1px solid var(--line); padding-top: 11px; color: var(--muted); font-size: 11px; }
-  .legend div { margin: 5px 0; }
-  .swatch { display: inline-block; width: 13px; height: 7px; border-radius: 2px; margin-right: 6px; }
-  .timeline { min-width: 0; background: #121419; border-top: 1px solid var(--line); display: grid; grid-template-rows: 36px 25px 119px 114px; }
-  .timeline-toolbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; background: #191b21; border-bottom: 1px solid var(--line); }
-  .timeline-toolbar strong { font-size: 12px; }
-  .timeline-toolbar .summary { color: var(--muted); }
-  .zoom { margin-left: auto; display: flex; gap: 5px; align-items: center; color: var(--muted); }
-  .zoom input { width: 105px; accent-color: var(--blue); }
-  .ruler-wrap, .track-row { display: grid; grid-template-columns: 116px minmax(0,1fr); }
-  .track-label { padding: 8px 10px; color: var(--muted); background: #17191e; border-right: 1px solid var(--line); font-size: 11px; }
-  .track-label b { color: #d9dce2; display: block; font-size: 12px; }
-  .scroll-x { position: relative; min-width: 0; overflow-x: auto; overflow-y: hidden; }
-  .ruler { height: 25px; position: relative; min-width: 100%; background: #15171c; border-bottom: 1px solid var(--line); }
-  .tick { position: absolute; bottom: 0; height: 7px; border-left: 1px solid #454a55; color: #7e8592; font-size: 9px; padding-left: 3px; }
-  .source-track, .sequence-track { position: relative; height: 100%; min-width: 100%; background: #0e1014; }
-  #waveform { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .82; }
-  .source-segment { position: absolute; top: 16px; height: 84px; border: 1px solid rgba(86,168,255,.8); background: rgba(45,101,157,.18); cursor: grab; overflow: hidden; }
-  .source-segment.selected { border-color: var(--orange); background: rgba(255,180,92,.17); z-index: 3; }
-  .source-segment .clip-label { position: absolute; left: 9px; right: 9px; top: 7px; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .source-segment .clip-time { position: absolute; left: 9px; bottom: 7px; color: #b6cbe3; font: 11px Consolas, monospace; pointer-events: none; }
-  .trim-handle { position: absolute; top: 0; bottom: 0; width: 9px; background: var(--blue); cursor: ew-resize; }
-  .trim-handle.left { left: 0; } .trim-handle.right { right: 0; }
-  .source-segment.selected .trim-handle { background: var(--orange); }
-  .sequence-clip { position: absolute; top: 14px; height: 82px; border: 1px solid #4a505d; background: #252932; overflow: visible; }
-  .sequence-clip.selected { border-color: var(--orange); z-index: 5; }
-  .sequence-clip .thumb { position: absolute; inset: 4px auto 4px 4px; width: 46px; border-radius: 3px; background-color: #101116; background-repeat: no-repeat; overflow: hidden; }
-  .sequence-clip .seq-info { position: absolute; left: 56px; right: 8px; top: 7px; pointer-events: none; min-width: 0; }
-  .sequence-clip .seq-info b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sequence-clip .seq-info span { color: var(--muted); font-size: 10px; }
-  .gap-zone { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(157,140,255,.08), rgba(157,140,255,.08) 5px, rgba(157,140,255,.2) 5px, rgba(157,140,255,.2) 10px); border-left: 1px dashed var(--purple); }
-  .gap-handle { position: absolute; top: 0; bottom: 0; width: 7px; background: var(--purple); cursor: ew-resize; z-index: 6; }
-  .transition-zone { position: absolute; top: 0; bottom: 0; right: 0; background: linear-gradient(90deg, rgba(255,107,107,.08), rgba(255,107,107,.45)); border-left: 1px solid var(--red); pointer-events: none; }
-  .transition-handle { position: absolute; right: -4px; top: 0; bottom: 0; width: 8px; background: var(--red); cursor: ew-resize; z-index: 7; }
-  .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 8px rgba(255,255,255,.75); z-index: 20; pointer-events: none; display: none; }
-  .statusbar { display: flex; align-items: center; gap: 10px; padding: 0 11px; background: #181a1f; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
-  #status { color: #b7d6b7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .statusbar .keys { margin-left: auto; }
-  .empty { color: var(--muted); padding: 18px; }
-  @media (max-width: 960px) {
-    .workspace { grid-template-columns: 116px minmax(300px, 1fr); }
-    .inspector { position: absolute; right: 0; top: 54px; bottom: 358px; width: 290px; z-index: 30; box-shadow: -10px 0 30px rgba(0,0,0,.35); }
-    .viewer { padding-right: 304px; }
-  }
+:root{color-scheme:dark;--bg:#0f1115;--panel:#171a20;--panel2:#20242c;--line:#303640;--text:#eef1f6;--muted:#929aaa;--blue:#4fa8ff;--orange:#ffb35c;--purple:#a18aff;--green:#64d49b;--red:#ff7070}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden}body{background:var(--bg);color:var(--text);font:13px/1.45 "Segoe UI","Microsoft YaHei",sans-serif}button,input,select{font:inherit}button{color:var(--text);background:#292e37;border:1px solid #3a414d;border-radius:7px;padding:7px 11px;cursor:pointer}button:hover{background:#353b46}button:disabled{opacity:.38;cursor:not-allowed}button.primary{background:#2f78ca;border-color:#529bea}button.ghost{background:transparent}input,select{color:var(--text);background:#11141a;border:1px solid #39404b;border-radius:6px;padding:6px 8px;min-width:0}input:focus,select:focus{outline:1px solid var(--blue);border-color:var(--blue)}
+.app{height:100%;display:grid;grid-template-rows:56px minmax(280px,1fr)326px 29px}.topbar{display:flex;align-items:center;gap:8px;padding:0 13px;background:#181b21;border-bottom:1px solid var(--line)}.brand{font-size:16px;font-weight:650;white-space:nowrap;margin-right:6px}.brand small{display:block;color:var(--muted);font-size:10px;font-weight:400;letter-spacing:.08em}.source-wrap{display:flex;align-items:center;gap:7px;min-width:230px;max-width:390px;flex:1}.source-wrap label{color:var(--muted);white-space:nowrap}.source-wrap select{width:100%}.toggle{display:flex;align-items:center;gap:5px;color:var(--muted);white-space:nowrap}.toggle input{accent-color:var(--blue)}
+.workspace{min-height:0;display:grid;grid-template-columns:150px minmax(330px,1fr)300px}.pages{background:#15181d;border-right:1px solid var(--line);overflow-y:auto;padding:9px}.pages-title{color:var(--muted);font-size:11px;letter-spacing:.08em;padding:3px 3px 8px}.page-card{display:grid;grid-template-columns:50px 1fr;gap:7px;width:100%;padding:6px;margin-bottom:6px;text-align:left;background:transparent;border-color:transparent}.page-card:hover{background:#21252d}.page-card.active{background:#252b35;border-color:#4d8dce}.page-card img{width:50px;height:68px;object-fit:cover;border-radius:4px;background:#090b0e}.page-meta{align-self:center;min-width:0}.page-name{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.page-sub{display:block;color:var(--muted);font-size:11px;margin-top:3px}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#555d69;margin-right:4px}.dot.on{background:var(--green);box-shadow:0 0 7px rgba(100,212,155,.5)}
+.viewer{min-width:0;min-height:0;display:grid;place-items:center;padding:13px;background:radial-gradient(circle at 50% 28%,#262b35,#111318 72%);overflow:hidden}.page-shell{height:100%;max-width:100%;aspect-ratio:9/16;position:relative;background:#080a0d;border:1px solid #3b424e;box-shadow:0 18px 48px rgba(0,0,0,.42);overflow:hidden}.page-shell img{display:block;width:100%;height:100%;object-fit:contain;opacity:.92}.page-shell svg{position:absolute;inset:0;width:100%;height:100%}.page-shell rect{fill:rgba(79,168,255,.05);stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke;cursor:pointer}.page-shell rect.active{fill:rgba(255,179,92,.18);stroke:var(--orange);stroke-width:4}.page-shell rect.inactive-preview{opacity:.35}.viewer-badge{position:absolute;left:9px;top:9px;padding:4px 8px;border-radius:5px;background:rgba(8,10,13,.8);font-size:11px;backdrop-filter:blur(6px)}
+.inspector{background:var(--panel);border-left:1px solid var(--line);padding:14px;overflow-y:auto}.inspector h2{font-size:14px;margin:0 0 3px}.item-id{color:var(--muted);font:11px Consolas,monospace;margin-bottom:13px}.mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:13px}.mode-tabs button.active{background:#2d6fae;border-color:#4d9be4}.field{margin-bottom:11px}.field label{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-bottom:5px}.field input{width:100%}.pair{display:grid;grid-template-columns:1fr 1fr;gap:7px}.text-card{min-height:70px;padding:9px;background:#11141a;border:1px solid var(--line);border-radius:7px;color:#d7dbe3}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:11px 0}.stat{background:#20242b;border:1px solid #303640;border-radius:7px;padding:7px}.stat span{display:block;color:var(--muted);font-size:10px}.stat b{display:block;margin-top:2px;font-size:14px}.help{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;color:var(--muted);font-size:11px}.help div{margin:5px 0}.swatch{display:inline-block;width:13px;height:7px;border-radius:2px;margin-right:6px}
+.timeline{min-width:0;background:#11141a;border-top:1px solid var(--line);display:grid;grid-template-rows:38px 25px 121px 112px}.timeline-head{display:flex;align-items:center;gap:10px;padding:0 12px;background:#191c22;border-bottom:1px solid var(--line)}.timeline-head strong{font-size:12px}.summary{color:var(--muted)}.zoom{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--muted)}.zoom input{width:105px;accent-color:var(--blue)}.ruler-row,.track-row{display:grid;grid-template-columns:112px minmax(0,1fr)}.track-label{padding:8px 9px;color:var(--muted);background:#171a20;border-right:1px solid var(--line);font-size:11px}.track-label b{display:block;color:#dde1e8;font-size:12px}.scroll{position:relative;min-width:0;overflow-x:auto;overflow-y:hidden}.ruler,.track{position:relative;min-width:100%;height:100%;background:#0d1014}.ruler{height:25px;background:#15181d;border-bottom:1px solid var(--line);cursor:pointer}.tick{position:absolute;bottom:0;height:7px;border-left:1px solid #48505d;color:#7f8794;font-size:9px;padding-left:3px}.track-grid{position:absolute;inset:0;background-image:linear-gradient(to right,rgba(255,255,255,.035) 1px,transparent 1px);background-size:78px 100%;pointer-events:none}
+.audio-clip{position:absolute;top:14px;height:91px;border:1px solid rgba(79,168,255,.8);background:rgba(39,91,143,.2);overflow:hidden;cursor:grab}.audio-clip.selected{border-color:var(--orange);background:rgba(255,179,92,.15);z-index:5}.audio-wave{position:absolute;inset:0;width:100%;height:100%;opacity:.78;pointer-events:none}.audio-info{position:absolute;left:11px;right:11px;top:7px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.audio-time{position:absolute;left:11px;bottom:7px;color:#b9cce0;font:11px Consolas,monospace;pointer-events:none}.trim{position:absolute;top:0;bottom:0;width:9px;background:var(--blue);cursor:ew-resize;z-index:4}.trim.left{left:0}.trim.right{right:0}.audio-clip.selected .trim{background:var(--orange)}.silence{position:absolute;top:14px;height:91px;background:repeating-linear-gradient(45deg,rgba(161,138,255,.06),rgba(161,138,255,.06) 6px,rgba(161,138,255,.18) 6px,rgba(161,138,255,.18) 12px);border:1px dashed rgba(161,138,255,.55);pointer-events:none}.silence span{position:absolute;left:6px;top:5px;color:#b8a9ff;font-size:10px}
+.visual-clip{position:absolute;top:13px;height:84px;border:1px solid #4a5260;background:#252a33;overflow:hidden;cursor:pointer}.visual-clip.selected{border-color:var(--orange);background:#30303a;z-index:4}.visual-index{display:inline-grid;place-items:center;width:30px;height:30px;margin:8px;border-radius:6px;background:#343b48;color:var(--blue);font-weight:700}.visual-clip.selected .visual-index{background:#4a3927;color:var(--orange)}.visual-info{position:absolute;left:48px;right:10px;top:8px;pointer-events:none}.visual-info b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.visual-info span{color:var(--muted);font-size:10px}.boundary{position:absolute;top:13px;height:84px;width:9px;background:var(--orange);cursor:ew-resize;z-index:7}.boundary:after{content:"";position:absolute;left:3px;top:31px;width:3px;height:20px;border-left:1px solid #5b3d1d;border-right:1px solid #5b3d1d}.playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 7px rgba(255,255,255,.7);z-index:20;pointer-events:none}.playhead:before{content:"";position:absolute;top:0;left:-4px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid #fff}
+.status{display:flex;align-items:center;gap:10px;padding:0 11px;background:#181b21;border-top:1px solid var(--line);color:var(--muted);font-size:11px}.status #message{color:#b8d8b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.keys{margin-left:auto}
+@media(max-width:980px){.workspace{grid-template-columns:118px minmax(300px,1fr)}.inspector{position:absolute;right:0;top:56px;bottom:355px;width:285px;z-index:30;box-shadow:-10px 0 28px rgba(0,0,0,.4)}.viewer{padding-right:296px}}
 </style>
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <div class="brand">画面与配音同步<small>MOTION COMIC · STAGE 02</small></div>
-    <div class="source-wrap"><label for="audioSource">页级配音</label><select id="audioSource"></select></div>
-    <label class="toggle"><input id="snapToggle" type="checkbox" checked> 吸附静音</label>
-    <button class="ghost" id="autoBtn">自动初排</button>
-    <button class="ghost" id="resetBtn">还原本页</button>
+    <div class="brand">音画同步工作台<small>MOTION COMIC · STAGE 02</small></div>
+    <div class="source-wrap"><label>页级配音</label><select id="audioSource"></select></div>
+    <label class="toggle"><input id="snap" type="checkbox" checked> 吸附静音</label>
+    <button id="splitBtn">✂ 在播放头切分</button>
+    <button id="mergeBtn">合并下一段</button>
+    <button id="blankBtn">＋ 插入留白</button>
+    <button class="ghost" id="resetBtn">还原</button>
     <button id="previewBtn">▶ 预览本页</button>
     <button class="primary" id="saveBtn">保存本页</button>
   </header>
 
   <main class="workspace">
-    <aside class="pages"><div class="pages-head">漫画页面</div><div id="pageList"></div></aside>
-    <section class="viewer">
-      <div class="viewer-shell" id="viewerShell">
-        <img id="pageImage" alt="漫画页面">
-        <div id="previewCrop"></div>
-        <svg id="overlay"></svg>
-        <div class="viewer-badge" id="viewerBadge">等待载入</div>
-      </div>
-    </section>
+    <aside class="pages"><div class="pages-title">漫画页面</div><div id="pageList"></div></aside>
+    <section class="viewer"><div class="page-shell" id="pageShell"><img id="pageImage" alt="漫画原页"><svg id="overlay"></svg><div class="viewer-badge" id="viewerBadge">等待载入</div></div></section>
     <aside class="inspector">
-      <h2 id="shotTitle">未选择画面</h2><div class="shot-id" id="shotId">—</div>
-      <div class="field"><label>对应解说</label><div class="narration" id="shotText">请在时间轴或漫画框中选择一个片段。</div></div>
-      <div class="stat-grid">
-        <div class="stat"><span>语音</span><b id="speechStat">—</b></div>
-        <div class="stat"><span>留白</span><b id="gapStat">—</b></div>
-        <div class="stat"><span>画面</span><b id="visualStat">—</b></div>
+      <div class="mode-tabs"><button id="audioTab">配音片段</button><button id="visualTab">画面片段</button></div>
+      <h2 id="itemTitle">未选择片段</h2><div class="item-id" id="itemId">—</div>
+      <div class="field"><label>对应内容</label><div class="text-card" id="itemText">点击上方配音轨或下方画面轨进行选择。</div></div>
+      <div class="stats"><div class="stat"><span>时间轴开始</span><b id="startStat">—</b></div><div class="stat"><span>结束</span><b id="endStat">—</b></div><div class="stat"><span>持续</span><b id="durationStat">—</b></div></div>
+      <div id="audioFields">
+        <div class="pair"><div class="field"><label>源音频入点</label><input id="sourceIn" type="number" min="0" step="0.02"></div><div class="field"><label>源音频出点</label><input id="sourceOut" type="number" min="0" step="0.02"></div></div>
+        <div class="field"><label><span>时间轴位置</span><span>拖动整段也可调整</span></label><input id="audioStart" type="number" min="0" step="0.02"></div>
+        <button id="playClipBtn" style="width:100%">▶ 试听当前配音片段</button>
       </div>
-      <div class="pair">
-        <div class="field"><label for="inPoint">音频入点</label><input id="inPoint" type="number" min="0" step="0.02"></div>
-        <div class="field"><label for="outPoint">音频出点</label><input id="outPoint" type="number" min="0" step="0.02"></div>
+      <div id="visualFields" hidden>
+        <div class="pair"><div class="field"><label>画面开始</label><input id="visualStart" type="number" min="0" step="0.02"></div><div class="field"><label>画面结束</label><input id="visualEnd" type="number" min="0" step="0.02"></div></div>
       </div>
-      <div class="field"><label for="gapAfter"><span>语音后留白</span><span>不会改原音频</span></label><input id="gapAfter" type="number" min="0" max="30" step="0.05"></div>
-      <div class="field"><label for="transitionType">出场转场</label><select id="transitionType"><option value="CUT">硬切</option><option value="CROSSFADE">交叉叠化</option><option value="FADE_BLACK">淡黑</option><option value="FADE_WHITE">淡白</option></select></div>
-      <div class="field"><label for="transitionDuration"><span>转场时长</span><span id="transitionHint">硬切无时长</span></label><input id="transitionDuration" type="number" min="0" max="10" step="0.05"></div>
-      <button id="playClipBtn" style="width:100%">▶ 试听当前语句</button>
-      <div class="legend">
-        <div><i class="swatch" style="background:var(--orange)"></i>拖上轨两侧：调整音频入点 / 出点</div>
-        <div><i class="swatch" style="background:var(--purple)"></i>拖下轨紫柄：插入无声停留</div>
-        <div><i class="swatch" style="background:var(--red)"></i>拖下轨红柄：设置转场长度</div>
+      <div class="help">
+        <div><i class="swatch" style="background:var(--blue)"></i>配音块两侧：裁入点 / 出点；拖中间：移动并制造留白</div>
+        <div><i class="swatch" style="background:var(--purple)"></i>紫色斜纹：真正没有声音的时间</div>
+        <div><i class="swatch" style="background:var(--orange)"></i>画面块之间的橙柄：调整前后两张图的显示时长</div>
+        <div>本版输出统一硬切，暂不处理转场。</div>
       </div>
     </aside>
   </main>
 
   <section class="timeline">
-    <div class="timeline-toolbar"><strong>页内时间轴</strong><span class="summary" id="timelineSummary">—</span><div class="zoom">缩放 <input id="zoomRange" type="range" min="70" max="220" value="100"></div></div>
-    <div class="ruler-wrap"><div class="track-label"></div><div class="scroll-x" id="rulerScroll"><div class="ruler" id="ruler"></div></div></div>
-    <div class="track-row"><div class="track-label"><b>源音频</b>拖入点 / 出点</div><div class="scroll-x" id="sourceScroll"><div class="source-track" id="sourceTrack"><canvas id="waveform"></canvas><div class="playhead" id="sourcePlayhead"></div></div></div></div>
-    <div class="track-row"><div class="track-label"><b>输出画面</b>留白 / 转场</div><div class="scroll-x" id="sequenceScroll"><div class="sequence-track" id="sequenceTrack"><div class="playhead" id="sequencePlayhead"></div></div></div></div>
+    <div class="timeline-head"><strong>本页成片时间轴</strong><span class="summary" id="summary">—</span><div class="zoom">缩放 <input id="zoom" type="range" min="70" max="230" value="100"></div></div>
+    <div class="ruler-row"><div class="track-label"></div><div class="scroll" id="rulerScroll"><div class="ruler" id="ruler"><div class="playhead" id="rulerHead"></div></div></div></div>
+    <div class="track-row"><div class="track-label"><b>配音轨</b>移动 / 裁切 / 留白</div><div class="scroll" id="audioScroll"><div class="track" id="audioTrack"><div class="track-grid"></div><div class="playhead" id="audioHead"></div></div></div></div>
+    <div class="track-row"><div class="track-label"><b>画面轨</b>拖橙色分界</div><div class="scroll" id="visualScroll"><div class="track" id="visualTrack"><div class="track-grid"></div><div class="playhead" id="visualHead"></div></div></div></div>
   </section>
-  <footer class="statusbar"><span id="status">正在读取项目…</span><span class="keys">方向键 ±0.02s · Shift + 方向键 ±0.10s</span></footer>
+  <footer class="status"><span id="message">正在读取项目…</span><span class="keys">点击时间尺设置播放头 · 空格预览/停止</span></footer>
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
-const esc = value => String(value ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const fmt = value => `${Number(value || 0).toFixed(2)}s`;
-const TRANSITION_NAMES = {CUT:"硬切", CROSSFADE:"交叉叠化", FADE_BLACK:"淡黑", FADE_WHITE:"淡白"};
-const S = {data:null, pageIndex:-1, page:null, source:null, buffer:null, pcm:null, segments:[], selected:0, ctx:null, zoom:1, dragging:null, preview:null, dirty:false};
+const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),fmt=v=>`${Number(v||0).toFixed(2)}s`;
+const esc=v=>String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const S={data:null,page:null,pageIndex:-1,source:null,buffer:null,pcm:null,partDurations:[],audioClips:[],visualClips:[],selectedType:"visual",selected:0,cursor:0,ctx:null,zoom:1,dirty:false,preview:null,previewVisual:-1};
+function msg(text,error=false){$("message").textContent=text;$("message").style.color=error?"#ff9292":"#b8d8b8"}
+function ctx(){if(!S.ctx)S.ctx=new(window.AudioContext||window.webkitAudioContext)();if(S.ctx.state==="suspended")S.ctx.resume();return S.ctx}
+async function json(url,options){const r=await fetch(url,options),d=await r.json();if(!r.ok||d.ok===false)throw new Error(d.error||`请求失败 ${r.status}`);return d}
+const audioUrl=p=>`/media/audio?path=${encodeURIComponent(p)}`,imageUrl=p=>`/media/image?page=${encodeURIComponent(p)}`;
+const audioDur=c=>Math.max(0,c.source_end-c.source_start),audioEnd=c=>c.timeline_start+audioDur(c);
+function pageDuration(){return Math.max(.1,...S.audioClips.map(audioEnd),...S.visualClips.map(c=>c.timeline_end))}
+function widthFor(duration){return Math.max(innerWidth-112,duration*80*S.zoom)}
 
-function setStatus(message, error=false) { $("status").textContent = message; $("status").style.color = error ? "#ff8e8e" : "#b7d6b7"; }
-function audioContext() {
-  if (!S.ctx) S.ctx = new (window.AudioContext || window.webkitAudioContext)();
-  if (S.ctx.state === "suspended") S.ctx.resume();
-  return S.ctx;
-}
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
-  const data = await response.json();
-  if (!response.ok || data.ok === false) throw new Error(data.error || `请求失败 ${response.status}`);
-  return data;
-}
-function audioUrl(path) { return `/media/audio?path=${encodeURIComponent(path)}`; }
-function imageUrl(page) { return `/media/image?page=${encodeURIComponent(page)}`; }
-function currentSegment() { return S.segments[S.selected]; }
-function sourceDuration() { return S.buffer?.duration || 0; }
-function speechDuration(segment) { return Math.max(0, segment.source_end - segment.source_start); }
-function transitionDuration(segment) { return segment.transition_out === "CUT" ? 0 : Number(segment.transition_duration || 0); }
-function outputStarts() {
-  const starts = []; let time = 0;
-  for (const segment of S.segments) { starts.push(time); time += speechDuration(segment) + Number(segment.gap_after || 0); }
-  return starts;
-}
-function outputDuration() {
-  if (!S.segments.length) return 0;
-  const starts = outputStarts();
-  return Math.max(...S.segments.map((segment,index)=>starts[index]+speechDuration(segment)+Number(segment.gap_after||0)+transitionDuration(segment)));
-}
-function timelineWidth(duration) { return Math.max(document.documentElement.clientWidth - 116, duration * 78 * S.zoom); }
+async function init(){try{S.data=await json("/api/data");renderPages();if(S.data.pages.length)await loadPage(0);else msg("director.json 中没有画面",true)}catch(e){msg(e.message,true)}}
+function renderPages(){$("pageList").innerHTML=S.data.pages.map((p,i)=>`<button class="page-card ${i===S.pageIndex?"active":""}" data-i="${i}"><img src="${imageUrl(p.page)}"><span class="page-meta"><span class="page-name">${esc(p.page)}</span><span class="page-sub"><i class="dot ${p.alignment?.audio_clips?"on":""}"></i>${p.shots.length} 张画面</span></span></button>`).join("");document.querySelectorAll(".page-card").forEach(b=>b.onclick=()=>loadPage(+b.dataset.i))}
+function fillSource(){const out=[];if(S.page.source.kind==="parts")out.push(`<option value="__parts__">自动拼接本页 ${S.page.source.parts.length} 段配音</option>`);if(S.page.source.kind==="missing")out.push(`<option value="">未找到配音</option>`);for(const p of S.data.audio_files)out.push(`<option value="${esc(p)}">${esc(p)}</option>`);$("audioSource").innerHTML=out.join("");$("audioSource").value=S.page.source.kind==="file"?S.page.source.path:S.page.source.kind==="parts"?"__parts__":""}
+async function loadPage(index){if(S.dirty&&index!==S.pageIndex&&!confirm("本页还有未保存调整，确定切换吗？"))return;stopPreview();S.pageIndex=index;S.page=S.data.pages[index];S.selectedType="visual";S.selected=0;S.cursor=0;S.dirty=false;renderPages();fillSource();$("pageImage").src=imageUrl(S.page.page);await new Promise(r=>{const im=$("pageImage");if(im.complete&&im.naturalWidth)r();else{im.onload=r;im.onerror=r}});await loadSource(S.page.source)}
+async function decode(path){const r=await fetch(audioUrl(path));if(!r.ok)throw new Error(`无法读取：${path}`);return ctx().decodeAudioData(await r.arrayBuffer())}
+async function loadSource(source){msg(`载入 ${S.page.page} 配音…`);try{let bufs=[];if(source.kind==="file")bufs=[await decode(source.path)];else if(source.kind==="parts")bufs=await Promise.all(source.parts.map(decode));else throw new Error("本页没有配音文件");S.partDurations=bufs.map(b=>b.duration);const total=bufs.reduce((n,b)=>n+b.length,0),c=ctx();S.buffer=c.createBuffer(1,total,c.sampleRate);S.pcm=S.buffer.getChannelData(0);let off=0;for(const b of bufs){S.pcm.set(b.getChannelData(0),off);off+=b.length}S.source=structuredClone(source);restoreOrArrange();renderAll();msg(`${S.page.page} · ${S.audioClips.length} 段配音 · ${S.visualClips.length} 张画面`)}catch(e){S.buffer=null;S.pcm=null;S.audioClips=[];S.visualClips=[];renderAll();msg(e.message,true)}}
 
-async function init() {
-  try {
-    S.data = await fetchJson("/api/data");
-    renderPageList();
-    if (S.data.pages.length) await loadPage(0);
-    else setStatus("director.json 中没有可编辑镜头", true);
-  } catch (error) { setStatus(error.message, true); }
-}
+function silenceSnap(target,radius=.75){if(!S.pcm||!$("snap").checked)return target;const sr=S.buffer.sampleRate,a=Math.max(0,Math.floor((target-radius)*sr)),b=Math.min(S.pcm.length,Math.ceil((target+radius)*sr)),win=Math.max(1,Math.floor(sr*.025)),stride=Math.max(1,Math.floor(sr*.012));let best=target,scoreBest=Infinity;for(let i=a;i<b-win;i+=stride){let score=0;for(let j=0;j<win;j+=8)score+=Math.abs(S.pcm[i+j]);score/=Math.max(1,win/8);score*=1+Math.abs(i/sr-target)/radius*.15;if(score<scoreBest){scoreBest=score;best=i/sr}}return best}
+function weightedBoundaries(count){const weights=S.page.shots.slice(0,count).map(s=>Math.max((s.text||"").replace(/[\s，。！？；：、…—,.!?;:]/g,"").length,4));while(weights.length<count)weights.push(4);const sum=weights.reduce((a,b)=>a+b,0),out=[0];let acc=0;for(let i=0;i<count-1;i++){acc+=weights[i];out.push(silenceSnap(S.buffer.duration*acc/sum))}out.push(S.buffer.duration);return out}
+function autoArrange(){let bounds=[];if(S.source.kind==="parts"&&S.partDurations.length){bounds=[0];let t=0;for(const d of S.partDurations){t+=d;bounds.push(t)}}else bounds=weightedBoundaries(Math.max(S.page.shots.length,1));S.audioClips=[];for(let i=0;i<bounds.length-1;i++)S.audioClips.push({id:`audio_${i+1}`,source_start:+bounds[i].toFixed(3),source_end:+bounds[i+1].toFixed(3),timeline_start:+bounds[i].toFixed(3),text:S.page.shots[i]?.text||`配音片段 ${i+1}`});const total=S.audioClips.at(-1)?audioEnd(S.audioClips.at(-1)):S.buffer.duration,b=weightedBoundaries(S.page.shots.length);S.visualClips=S.page.shots.map((s,i)=>({shot_id:s.id,timeline_start:+(b[i]/S.buffer.duration*total).toFixed(3),timeline_end:+(b[i+1]/S.buffer.duration*total).toFixed(3)}));S.selectedType="visual";S.selected=0}
+function migrateV1(saved){const seg=saved.segments||[];let timeline=0;S.audioClips=seg.map((x,i)=>{const clip={id:`audio_${i+1}`,source_start:+x.source_start,source_end:+x.source_end,timeline_start:+timeline.toFixed(3),text:S.page.shots[i]?.text||""};timeline+=x.source_end-x.source_start+(x.gap_after||0);return clip});const total=Math.max(timeline,...S.audioClips.map(audioEnd));S.visualClips=S.page.shots.map((s,i)=>{const start=i<S.audioClips.length?S.audioClips[i].timeline_start:total*i/S.page.shots.length;const end=i+1<S.audioClips.length?S.audioClips[i+1].timeline_start:total;return{shot_id:s.id,timeline_start:start,timeline_end:end}})}
+function restoreOrArrange(){const saved=S.page.alignment;if(saved?.audio_clips?.length&&saved?.visual_clips?.length){S.audioClips=saved.audio_clips.map(x=>({...x}));S.visualClips=saved.visual_clips.map(x=>({...x}))}else if(saved?.segments?.length)migrateV1(saved);else autoArrange();sanitize()}
+function sanitize(){const dur=S.buffer?.duration||0;let prevEnd=0;S.audioClips.forEach((c,i)=>{c.source_start=clamp(Number(c.source_start||0),0,Math.max(0,dur-.08));c.source_end=clamp(Number(c.source_end||c.source_start+.08),c.source_start+.08,dur);c.timeline_start=Math.max(Number(c.timeline_start||0),prevEnd);c.id=String(c.id||`audio_${i+1}`);prevEnd=audioEnd(c)});let t=0;S.visualClips.forEach((c,i)=>{c.timeline_start=i===0?0:t;c.timeline_end=Math.max(Number(c.timeline_end||t+.2),c.timeline_start+.08);t=c.timeline_end});if(S.visualClips.length){const need=Math.max(...S.audioClips.map(audioEnd),0);if(S.visualClips.at(-1).timeline_end<need)S.visualClips.at(-1).timeline_end=need}}
 
-function renderPageList() {
-  $("pageList").innerHTML = S.data.pages.map((page, index) => `
-    <button class="page-card ${index === S.pageIndex ? "active" : ""}" data-page="${index}">
-      <img src="${imageUrl(page.page)}" alt="${esc(page.page)}">
-      <span class="page-meta"><span class="page-name">${esc(page.page)}</span><span class="page-sub"><i class="saved-dot ${page.alignment ? "on" : ""}"></i>${page.shots.length} 个画面</span></span>
-    </button>`).join("");
-  document.querySelectorAll(".page-card").forEach(button => button.onclick = () => loadPage(Number(button.dataset.page)));
-}
+function renderAll(){sanitize();renderTimeline();drawOverlay();updateInspector();$("summary").textContent=S.buffer?`总长 ${fmt(pageDuration())} · ${S.audioClips.length} 段配音 · ${S.visualClips.length} 张画面`:"没有配音";for(const id of ["saveBtn","previewBtn","splitBtn","blankBtn"])$(id).disabled=!S.buffer}
+function drawRuler(w,d){const r=$("ruler");r.style.width=`${w}px`;r.querySelectorAll(".tick").forEach(x=>x.remove());const step=d>40?5:d>18?2:1;for(let t=0;t<=d+.001;t+=step){const x=document.createElement("div");x.className="tick";x.style.left=`${t/d*w}px`;x.textContent=`${t.toFixed(0)}s`;r.appendChild(x)}}
+function drawClipWave(canvas,clip,w,h){const ratio=devicePixelRatio||1;canvas.width=Math.max(1,w*ratio);canvas.height=h*ratio;canvas.style.width=`${w}px`;canvas.style.height=`${h}px`;const g=canvas.getContext("2d");g.scale(ratio,ratio);if(!S.pcm)return;const sr=S.buffer.sampleRate,a=Math.floor(clip.source_start*sr),b=Math.min(S.pcm.length,Math.floor(clip.source_end*sr)),step=Math.max(1,Math.floor((b-a)/Math.max(w,1)));g.strokeStyle="#57adff";g.beginPath();for(let x=0;x<w;x++){let lo=1,hi=-1;const q=a+x*step,z=Math.min(q+step,b);for(let i=q;i<z;i+=Math.max(1,Math.floor(step/10))){lo=Math.min(lo,S.pcm[i]);hi=Math.max(hi,S.pcm[i])}g.moveTo(x+.5,h/2-hi*h*.36);g.lineTo(x+.5,h/2-lo*h*.36)}g.stroke()}
+function renderTimeline(){const d=pageDuration(),w=widthFor(d);drawRuler(w,d);for(const id of ["audioTrack","visualTrack"]){$(id).style.width=`${w}px`;$(id).querySelectorAll(".audio-clip,.visual-clip,.boundary,.silence").forEach(x=>x.remove())}let last=0;S.audioClips.forEach((c,i)=>{if(c.timeline_start>last+.01){const gap=document.createElement("div");gap.className="silence";gap.style.left=`${last/d*w}px`;gap.style.width=`${(c.timeline_start-last)/d*w}px`;gap.innerHTML=`<span>留白 ${fmt(c.timeline_start-last)}</span>`;$("audioTrack").appendChild(gap)}const left=c.timeline_start/d*w,cw=Math.max(16,audioDur(c)/d*w),el=document.createElement("div");el.className=`audio-clip ${S.selectedType==="audio"&&i===S.selected?"selected":""}`;el.style.left=`${left}px`;el.style.width=`${cw}px`;el.innerHTML=`<canvas class="audio-wave"></canvas><div class="trim left" data-mode="left"></div><div class="audio-info">${i+1}. ${esc(c.text||"配音片段")}</div><div class="audio-time">${fmt(c.timeline_start)} → ${fmt(audioEnd(c))}</div><div class="trim right" data-mode="right"></div>`;el.onclick=e=>{e.stopPropagation();select("audio",i)};el.onpointerdown=e=>startAudioDrag(e,i,e.target.dataset.mode||"move",d,w);$("audioTrack").appendChild(el);drawClipWave(el.querySelector("canvas"),c,Math.floor(cw),91);last=audioEnd(c)});S.visualClips.forEach((c,i)=>{const left=c.timeline_start/d*w,cw=Math.max(15,(c.timeline_end-c.timeline_start)/d*w),el=document.createElement("div");el.className=`visual-clip ${S.selectedType==="visual"&&i===S.selected?"selected":""}`;el.style.left=`${left}px`;el.style.width=`${cw}px`;el.innerHTML=`<span class="visual-index">${i+1}</span><div class="visual-info"><b>${esc(S.page.shots[i]?.text||`画面 ${i+1}`)}</b><span>${fmt(c.timeline_start)} → ${fmt(c.timeline_end)}</span></div>`;el.onclick=()=>select("visual",i);$("visualTrack").appendChild(el);if(i<S.visualClips.length-1){const h=document.createElement("div");h.className="boundary";h.style.left=`${c.timeline_end/d*w-4}px`;h.onpointerdown=e=>startVisualDrag(e,i,d,w);$("visualTrack").appendChild(h)}});positionHeads(w,d)}
+function select(type,index){S.selectedType=type;S.selected=clamp(index,0,(type==="audio"?S.audioClips:S.visualClips).length-1);renderAll()}
+function startAudioDrag(e,index,mode,d,w){e.preventDefault();e.stopPropagation();select("audio",index);const original=S.audioClips.map(x=>({...x})),x0=e.clientX,prev=index?audioEnd(original[index-1]):0;const move=ev=>{const delta=(ev.clientX-x0)/w*d,c=S.audioClips[index],o=original[index];if(mode==="left"){const maxDelta=audioDur(o)-.08,minDelta=Math.max(prev-o.timeline_start,-o.source_start),dd=clamp(delta,minDelta,maxDelta);c.source_start=o.source_start+dd;c.timeline_start=o.timeline_start+dd}else if(mode==="right"){const next=index<S.audioClips.length-1?original[index+1].timeline_start:Infinity,maxSourceEnd=o.source_start+next-o.timeline_start;c.source_end=clamp(o.source_end+delta,o.source_start+.08,Math.min(S.buffer.duration,maxSourceEnd))}else{const dd=Math.max(delta,prev-o.timeline_start);for(let i=index;i<S.audioClips.length;i++)S.audioClips[i].timeline_start=original[i].timeline_start+dd}S.dirty=true;renderAll()};const up=()=>{removeEventListener("pointermove",move);removeEventListener("pointerup",up)};addEventListener("pointermove",move);addEventListener("pointerup",up)}
+function startVisualDrag(e,index,d,w){e.preventDefault();select("visual",index);const x0=e.clientX,original=S.visualClips.map(x=>({...x}));const move=ev=>{const value=original[index].timeline_end+(ev.clientX-x0)/w*d,lo=original[index].timeline_start+.08,hi=original[index+1].timeline_end-.08,b=clamp(value,lo,hi);S.visualClips[index].timeline_end=b;S.visualClips[index+1].timeline_start=b;S.dirty=true;renderAll()};const up=()=>{removeEventListener("pointermove",move);removeEventListener("pointerup",up)};addEventListener("pointermove",move);addEventListener("pointerup",up)}
 
-function populateSourceSelect() {
-  const options = [];
-  if (S.page.source.kind === "parts") options.push(`<option value="__parts__">自动拼接本页 ${S.page.source.parts.length} 段配音</option>`);
-  if (S.page.source.kind === "missing") options.push(`<option value="">未找到配音文件</option>`);
-  for (const path of S.data.audio_files) options.push(`<option value="${esc(path)}">${esc(path)}</option>`);
-  $("audioSource").innerHTML = options.join("");
-  $("audioSource").value = S.page.source.kind === "file" ? S.page.source.path : S.page.source.kind === "parts" ? "__parts__" : "";
-}
+function drawOverlay(active=S.previewVisual>=0?S.previewVisual:(S.selectedType==="visual"?S.selected:-1)){const im=$("pageImage"),svg=$("overlay"),shell=$("pageShell").getBoundingClientRect();if(!S.page||!im.naturalWidth)return;const scale=Math.min(shell.width/im.naturalWidth,shell.height/im.naturalHeight),dw=im.naturalWidth*scale,dh=im.naturalHeight*scale,ox=(shell.width-dw)/2,oy=(shell.height-dh)/2;svg.setAttribute("viewBox",`0 0 ${shell.width} ${shell.height}`);svg.innerHTML="";S.page.shots.forEach((s,i)=>{if(!s.bbox)return;const[x0,y0,x1,y1]=s.bbox,r=document.createElementNS("http://www.w3.org/2000/svg","rect");r.setAttribute("x",ox+x0*dw);r.setAttribute("y",oy+y0*dh);r.setAttribute("width",(x1-x0)*dw);r.setAttribute("height",(y1-y0)*dh);if(i===active)r.classList.add("active");if(S.preview&&i!==active)r.classList.add("inactive-preview");r.onclick=()=>select("visual",i);svg.appendChild(r)});$("viewerBadge").textContent=S.preview&&active>=0?`预览中 · 当前画面 ${active+1}`:`${S.page.page} · 整页标框预览`}
+function updateInspector(){const audio=S.selectedType==="audio",list=audio?S.audioClips:S.visualClips,c=list[S.selected];$("audioTab").classList.toggle("active",audio);$("visualTab").classList.toggle("active",!audio);$("audioFields").hidden=!audio;$("visualFields").hidden=audio;if(!c)return;const end=audio?audioEnd(c):c.timeline_end,start=c.timeline_start;$("itemTitle").textContent=audio?`配音片段 ${S.selected+1}`:`画面 ${S.selected+1}`;$("itemId").textContent=audio?c.id:c.shot_id;$("itemText").textContent=audio?(c.text||"无文字"):(S.page.shots[S.selected]?.text||"无解说文字");$("startStat").textContent=fmt(start);$("endStat").textContent=fmt(end);$("durationStat").textContent=fmt(end-start);if(audio){$("sourceIn").value=c.source_start.toFixed(2);$("sourceOut").value=c.source_end.toFixed(2);$("audioStart").value=c.timeline_start.toFixed(2);$("mergeBtn").disabled=S.selected>=S.audioClips.length-1}else{$("visualStart").value=c.timeline_start.toFixed(2);$("visualEnd").value=c.timeline_end.toFixed(2)}}
+function setCursor(time){S.cursor=clamp(time,0,pageDuration());positionHeads(widthFor(pageDuration()),pageDuration())}
+function positionHeads(w,d){const x=S.cursor/d*w;for(const id of ["rulerHead","audioHead","visualHead"])$(id).style.left=`${x}px`}
+function activeVisual(time){let index=0;for(let i=0;i<S.visualClips.length;i++)if(time>=S.visualClips[i].timeline_start)index=i;return index}
+function sourceNode(clip,when){const s=ctx().createBufferSource();s.buffer=S.buffer;s.connect(S.ctx.destination);s.start(when,clip.source_start,audioDur(clip));return s}
+function preview(){if(S.preview){stopPreview();return}const c=ctx(),at=c.currentTime+.12-S.cursor,nodes=[];for(const clip of S.audioClips){const start=at+clip.timeline_start;if(start>c.currentTime)nodes.push(sourceNode(clip,start));else if(audioEnd(clip)>S.cursor){const passed=Math.max(0,S.cursor-clip.timeline_start),copy={...clip,source_start:clip.source_start+passed};nodes.push(sourceNode(copy,c.currentTime+.12))}}S.preview={at:c.currentTime+.12-S.cursor,nodes,raf:0};$("previewBtn").textContent="■ 停止预览";const tick=()=>{if(!S.preview)return;S.cursor=c.currentTime-S.preview.at;if(S.cursor>pageDuration()){stopPreview();setCursor(0);return}S.previewVisual=activeVisual(S.cursor);drawOverlay();positionHeads(widthFor(pageDuration()),pageDuration());S.preview.raf=requestAnimationFrame(tick)};tick()}
+function stopPreview(){if(!S.preview)return;S.preview.nodes.forEach(n=>{try{n.stop()}catch{}});cancelAnimationFrame(S.preview.raf);S.preview=null;S.previewVisual=-1;$("previewBtn").textContent="▶ 预览本页";drawOverlay()}
+function playClip(){const c=S.audioClips[S.selected];if(S.selectedType!=="audio"||!c)return;sourceNode(c,ctx().currentTime+.05)}
 
-async function loadPage(index) {
-  if (S.dirty && index !== S.pageIndex && !window.confirm("本页还有未保存的时间调整，确定切换页面吗？")) return;
-  stopPreview();
-  S.pageIndex = index; S.page = S.data.pages[index]; S.selected = 0; S.dirty = false;
-  populateSourceSelect(); renderPageList();
-  $("pageImage").src = imageUrl(S.page.page);
-  await new Promise(resolve => { const image=$("pageImage"); if (image.complete && image.naturalWidth) resolve(); else { image.onload=resolve; image.onerror=resolve; } });
-  drawOverlay();
-  await loadAudioSource(S.page.source);
-}
+function splitAtCursor(){const i=S.audioClips.findIndex(c=>S.cursor>c.timeline_start+.08&&S.cursor<audioEnd(c)-.08);if(i<0){msg("请先把播放头放在某个配音片段内部",true);return}const c=S.audioClips[i],offset=S.cursor-c.timeline_start,sourceCut=c.source_start+offset,left={...c,source_end:sourceCut,text:c.text?`${c.text}（前）`:""},right={...c,id:`${c.id}_b`,source_start:sourceCut,timeline_start:S.cursor,text:c.text?`${c.text}（后）`:""};S.audioClips.splice(i,1,left,right);S.selectedType="audio";S.selected=i+1;S.dirty=true;renderAll();msg(`已在 ${fmt(S.cursor)} 添加切分点，可继续拖动两段的入点/出点`)}
+function mergeNext(){if(S.selectedType!=="audio"||S.selected>=S.audioClips.length-1)return;const a=S.audioClips[S.selected],b=S.audioClips[S.selected+1];if(Math.abs(a.source_end-b.source_start)>.03){msg("两段之间裁掉了源音频，无法直接合并；请先把相邻出点/入点接回同一位置",true);return}const gap=Math.max(0,b.timeline_start-audioEnd(a));a.source_end=b.source_end;a.text=[a.text,b.text].filter(Boolean).join("");S.audioClips.splice(S.selected+1,1);for(let i=S.selected+1;i<S.audioClips.length;i++)S.audioClips[i].timeline_start-=gap;S.dirty=true;renderAll();msg(gap>0?`已合并相邻配音片段，并移除 ${fmt(gap)} 留白`:"已合并相邻配音片段")}
+function shiftVisualAt(time,delta){if(!S.visualClips.length)return;let owner=activeVisual(time);S.visualClips[owner].timeline_end+=delta;for(let i=owner+1;i<S.visualClips.length;i++){S.visualClips[i].timeline_start+=delta;S.visualClips[i].timeline_end+=delta}}
+function insertBlank(){if(S.selectedType!=="audio"){msg("请先选择要在哪一段配音之后插入留白",true);return}const value=prompt("在当前配音片段之后插入多少秒留白？","0.50"),seconds=Number(value);if(!Number.isFinite(seconds)||seconds<=0)return;const boundary=audioEnd(S.audioClips[S.selected]);for(let i=S.selected+1;i<S.audioClips.length;i++)S.audioClips[i].timeline_start+=seconds;shiftVisualAt(boundary,seconds);S.dirty=true;renderAll();msg(`已插入 ${fmt(seconds)} 留白；当前画面会在留白期间继续保持`)}
+function editAudio(){if(S.selectedType!=="audio")return;const c=S.audioClips[S.selected],prev=S.selected?audioEnd(S.audioClips[S.selected-1]):0,next=S.selected<S.audioClips.length-1?S.audioClips[S.selected+1].timeline_start:Infinity;c.source_start=clamp(Number($("sourceIn").value),0,c.source_end-.08);c.source_end=clamp(Number($("sourceOut").value),c.source_start+.08,S.buffer.duration);c.timeline_start=clamp(Number($("audioStart").value),prev,next-audioDur(c));S.dirty=true;renderAll()}
+function editVisual(){if(S.selectedType!=="visual")return;const i=S.selected,c=S.visualClips[i];if(i>0){const start=clamp(Number($("visualStart").value),S.visualClips[i-1].timeline_start+.08,c.timeline_end-.08);S.visualClips[i-1].timeline_end=start;c.timeline_start=start}const end=Number($("visualEnd").value);if(i<S.visualClips.length-1){const b=clamp(end,c.timeline_start+.08,S.visualClips[i+1].timeline_end-.08);c.timeline_end=b;S.visualClips[i+1].timeline_start=b}else c.timeline_end=Math.max(end,c.timeline_start+.08);S.dirty=true;renderAll()}
+async function save(){if(!S.buffer)return;$("saveBtn").disabled=true;msg("保存独立音频轨和画面轨…");try{const r=await json("/api/alignment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({page:S.page.page,source:S.source,audio_duration:S.buffer.duration,audio_clips:S.audioClips,visual_clips:S.visualClips})});S.page.alignment={audio:r.audio,audio_duration:S.buffer.duration,audio_clips:S.audioClips.map(x=>({...x})),visual_clips:S.visualClips.map(x=>({...x}))};S.page.source={kind:"file",path:r.audio};S.source={...S.page.source};S.dirty=false;renderPages();fillSource();msg(`✔ 已保存：${r.audio_clips} 段配音、${r.visual_clips} 张画面，输出统一硬切`)}catch(e){msg(`保存失败：${e.message}`,true)}finally{$("saveBtn").disabled=false}}
 
-async function decodePath(path) {
-  const response = await fetch(audioUrl(path));
-  if (!response.ok) throw new Error(`无法读取配音：${path}`);
-  return audioContext().decodeAudioData(await response.arrayBuffer());
-}
-
-async function loadAudioSource(source) {
-  setStatus(`正在载入 ${S.page.page} 的配音…`);
-  try {
-    let buffers = [];
-    if (source.kind === "file") buffers = [await decodePath(source.path)];
-    else if (source.kind === "parts") buffers = await Promise.all(source.parts.map(decodePath));
-    else throw new Error("本页没有配音。请把页级音频放进工作目录的 audio 文件夹后重新打开。")
-    const ctx = audioContext(), channels = 1, totalFrames = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
-    S.buffer = ctx.createBuffer(channels, totalFrames, ctx.sampleRate);
-    S.pcm = S.buffer.getChannelData(0); let offset = 0;
-    for (const buffer of buffers) { S.pcm.set(buffer.getChannelData(0), offset); offset += buffer.length; }
-    S.source = structuredClone(source);
-    restoreOrAutoAlign(); renderAll();
-    setStatus(`${S.page.page} · 配音 ${fmt(S.buffer.duration)} · ${S.segments.length} 个画面片段`);
-  } catch (error) {
-    S.buffer = null; S.pcm = null; S.segments = [];
-    renderAll(); setStatus(error.message, true);
-  }
-}
-
-function restoreOrAutoAlign() {
-  const saved = S.page.alignment?.segments;
-  if (saved?.length === S.page.shots.length && saved.every((segment, i) => segment.shot_id === S.page.shots[i].id)) {
-    S.segments = saved.map(segment => ({...segment}));
-    sanitizeSegments();
-  } else autoAlign(false);
-}
-
-function silenceSnap(target, radius=0.85) {
-  if (!S.pcm || !$("snapToggle").checked) return target;
-  const sr=S.buffer.sampleRate, start=Math.max(0, Math.floor((target-radius)*sr)), end=Math.min(S.pcm.length, Math.ceil((target+radius)*sr));
-  const window=Math.max(1, Math.floor(sr*.025)), stride=Math.max(1, Math.floor(sr*.01));
-  let best=target, bestScore=Infinity;
-  for (let i=start; i<end-window; i+=stride) {
-    let score=0; for (let j=0; j<window; j+=8) score += Math.abs(S.pcm[i+j]);
-    score /= Math.max(1, window/8);
-    const time=i/sr, distance=Math.abs(time-target)/radius;
-    score *= 1 + distance*.18;
-    if (score < bestScore) { bestScore=score; best=time; }
-  }
-  return best;
-}
-
-function autoAlign(markDirty=true) {
-  if (!S.buffer || !S.page) return;
-  const weights=S.page.shots.map(shot => Math.max((shot.text || "").replace(/[\s，。！？；：、…—,.!?;:]/g, "").length, 4));
-  const sum=weights.reduce((a,b)=>a+b,0), boundaries=[0]; let acc=0;
-  for (let i=0; i<weights.length-1; i++) { acc += weights[i]; boundaries.push(silenceSnap(S.buffer.duration*acc/sum)); }
-  boundaries.push(S.buffer.duration);
-  for (let i=1; i<boundaries.length-1; i++) boundaries[i]=clamp(boundaries[i], boundaries[i-1]+.12, boundaries[i+1]-.12);
-  S.segments=S.page.shots.map((shot,i)=>({shot_id:shot.id, source_start:+boundaries[i].toFixed(3), source_end:+boundaries[i+1].toFixed(3), gap_after:Number(shot.gap_after||0), transition_out:shot.transition_out||"CUT", transition_duration:shot.transition_out==="CUT"?0:Number(shot.transition_duration||.6)}));
-  S.selected=0; S.dirty=markDirty; renderAll();
-  if (markDirty) setStatus("已按文字长度和静音位置重新初排，保存前可继续拖动微调");
-}
-
-function sanitizeSegments() {
-  const duration=sourceDuration(); let previous=0;
-  S.segments.forEach((segment,index)=>{
-    segment.source_start=clamp(Number(segment.source_start||0), previous, Math.max(previous,duration-.08));
-    segment.source_end=clamp(Number(segment.source_end||segment.source_start+.08), segment.source_start+.08, duration);
-    segment.gap_after=clamp(Number(segment.gap_after||0),0,30);
-    segment.transition_out=TRANSITION_NAMES[segment.transition_out]?segment.transition_out:"CUT";
-    segment.transition_duration=segment.transition_out==="CUT"?0:clamp(Number(segment.transition_duration||.6),.05,10);
-    previous=segment.source_end;
-    if (index===S.segments.length-1 && S.pageIndex===S.data.pages.length-1) { segment.transition_out="CUT"; segment.transition_duration=0; }
-  });
-}
-
-function renderAll() { sanitizeSegments(); renderRulerAndTracks(); drawOverlay(); updateInspector(); renderSummary(); }
-function renderSummary() {
-  $("timelineSummary").textContent=S.buffer?`源音频 ${fmt(sourceDuration())} · 输出 ${fmt(outputDuration())} · ${S.segments.length} 段`:"没有可用音频";
-  $("saveBtn").disabled=!S.buffer; $("previewBtn").disabled=!S.buffer; $("autoBtn").disabled=!S.buffer;
-}
-
-function drawRuler(width, duration) {
-  const ruler=$("ruler"); ruler.style.width=`${width}px`; ruler.innerHTML="";
-  const major=duration>40?5:duration>18?2:1;
-  for(let time=0; time<=duration+.001; time+=major){const tick=document.createElement("div");tick.className="tick";tick.style.left=`${time/duration*width}px`;tick.textContent=`${time.toFixed(0)}s`;ruler.appendChild(tick);}
-}
-
-function drawWaveform(width, duration) {
-  const canvas=$("waveform"), height=119, ratio=devicePixelRatio||1;
-  canvas.width=Math.floor(width*ratio); canvas.height=Math.floor(height*ratio); canvas.style.width=`${width}px`; canvas.style.height=`${height}px`;
-  const g=canvas.getContext("2d"); g.scale(ratio,ratio); g.clearRect(0,0,width,height); if(!S.pcm)return;
-  const dataWidth=Math.max(1,Math.floor(sourceDuration()/duration*width)),step=Math.max(1,Math.floor(S.pcm.length/dataWidth)); g.strokeStyle="#4b9ce8"; g.lineWidth=1; g.beginPath();
-  for(let x=0;x<dataWidth;x++){let lo=1,hi=-1;const a=x*step,b=Math.min(a+step,S.pcm.length);for(let i=a;i<b;i+=Math.max(1,Math.floor(step/12))){const v=S.pcm[i];lo=Math.min(lo,v);hi=Math.max(hi,v);}g.moveTo(x+.5,height/2-hi*height*.39);g.lineTo(x+.5,height/2-lo*height*.39);}g.stroke();
-}
-
-function renderRulerAndTracks() {
-  const sourceDur=Math.max(sourceDuration(),.1), outputDur=Math.max(outputDuration(),.1), duration=Math.max(sourceDur,outputDur), width=timelineWidth(duration);
-  drawRuler(width,duration);
-  const source=$("sourceTrack"), sequence=$("sequenceTrack"); source.style.width=sequence.style.width=`${width}px`; drawWaveform(width,duration);
-  source.querySelectorAll(".source-segment").forEach(el=>el.remove()); sequence.querySelectorAll(".sequence-clip").forEach(el=>el.remove());
-  const pageUrl=imageUrl(S.page?.page||"");
-  S.segments.forEach((segment,index)=>{
-    const left=segment.source_start/duration*width, clipWidth=Math.max(14,speechDuration(segment)/duration*width);
-    const block=document.createElement("div");block.className=`source-segment ${index===S.selected?"selected":""}`;block.dataset.index=index;block.style.left=`${left}px`;block.style.width=`${clipWidth}px`;
-    block.innerHTML=`<div class="trim-handle left" data-edge="start"></div><div class="clip-label">${index+1}. ${esc(S.page.shots[index].text||"无解说")}</div><div class="clip-time">${fmt(segment.source_start)} → ${fmt(segment.source_end)}</div><div class="trim-handle right" data-edge="end"></div>`;
-    block.onclick=event=>{event.stopPropagation();selectSegment(index);}; block.onpointerdown=event=>beginSourceDrag(event,index,event.target.dataset.edge||"move",duration,width); source.appendChild(block);
-  });
-  const starts=outputStarts();
-  S.segments.forEach((segment,index)=>{
-    const speech=speechDuration(segment), gap=Number(segment.gap_after||0), transition=transitionDuration(segment), visual=speech+gap+transition;
-    const left=starts[index]/duration*width, clipWidth=Math.max(18,visual/duration*width);
-    const clip=document.createElement("div");clip.className=`sequence-clip ${index===S.selected?"selected":""}`;clip.style.left=`${left}px`;clip.style.width=`${clipWidth}px`;clip.dataset.index=index;
-    const thumb=thumbnailStyle(S.page.shots[index].bbox,pageUrl);
-    clip.innerHTML=`<div class="thumb" style="${thumb}"></div><div class="seq-info"><b>${index+1}. ${esc(S.page.shots[index].text||"画面片段")}</b><span>${fmt(visual)} · ${TRANSITION_NAMES[segment.transition_out]}</span></div>${gap>0?`<div class="gap-zone" style="left:${speech/visual*100}%;width:${gap/visual*100}%"></div>`:""}<div class="gap-handle" style="left:${(speech+gap)/visual*100}%" title="拖动调整留白"></div>${transition>0?`<div class="transition-zone" style="width:${transition/visual*100}%"></div><div class="transition-handle" title="拖动调整转场"></div>`:""}`;
-    clip.onclick=()=>selectSegment(index);clip.querySelector(".gap-handle").onpointerdown=event=>beginSequenceDrag(event,index,"gap",duration,width,starts[index]);const th=clip.querySelector(".transition-handle");if(th)th.onpointerdown=event=>beginSequenceDrag(event,index,"transition",duration,width,starts[index]);sequence.appendChild(clip);
-  });
-}
-
-function thumbnailStyle(bbox,url) {
-  if(!bbox)return `background-image:url('${url}');background-size:cover;background-position:center`;
-  const [x0,y0,x1,y1]=bbox,w=Math.max(x1-x0,.01),h=Math.max(y1-y0,.01),scale=Math.max(1/w,1/h);
-  const px=w>=.999?50:clamp(x0/(1-w)*100,0,100),py=h>=.999?50:clamp(y0/(1-h)*100,0,100);
-  return `background-image:url('${url}');background-size:${scale*100}% ${scale*100}%;background-position:${px}% ${py}%`;
-}
-
-function beginSourceDrag(event,index,mode,duration,width) {
-  event.preventDefault();event.stopPropagation();selectSegment(index);const original={...S.segments[index]},startX=event.clientX,previous=index?S.segments[index-1].source_end:0,next=index<S.segments.length-1?S.segments[index+1].source_start:sourceDuration();
-  S.dragging={type:"source",index,mode};event.target.setPointerCapture?.(event.pointerId);
-  const move=moveEvent=>{let delta=(moveEvent.clientX-startX)/width*duration;if($("snapToggle").checked&&mode!=="move")delta=silenceSnap((mode==="start"?original.source_start:original.source_end)+delta,.35)-(mode==="start"?original.source_start:original.source_end);const seg=S.segments[index],len=original.source_end-original.source_start;if(mode==="start")seg.source_start=clamp(original.source_start+delta,previous,seg.source_end-.08);else if(mode==="end")seg.source_end=clamp(original.source_end+delta,seg.source_start+.08,next);else{const start=clamp(original.source_start+delta,previous,next-len);seg.source_start=start;seg.source_end=start+len;}S.dirty=true;renderAll();};
-  const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);S.dragging=null;};window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);
-}
-
-function beginSequenceDrag(event,index,mode,duration,width,start) {
-  event.preventDefault();event.stopPropagation();selectSegment(index);const original={...S.segments[index]},speech=speechDuration(original);
-  const move=moveEvent=>{const rect=$("sequenceTrack").getBoundingClientRect(),time=(moveEvent.clientX-rect.left)/width*duration,seg=S.segments[index];if(mode==="gap")seg.gap_after=clamp(time-start-speech,0,30);else{if(seg.transition_out==="CUT")seg.transition_out="CROSSFADE";seg.transition_duration=clamp(time-(start+speech+Number(seg.gap_after||0)),.05,10);}S.dirty=true;renderAll();};
-  const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);};window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);
-}
-
-function drawOverlay() {
-  const image=$("pageImage"), overlay=$("overlay");if(!S.page||!image.naturalWidth)return;
-  const shell=$("viewerShell").getBoundingClientRect(),scale=Math.min(shell.width/image.naturalWidth,shell.height/image.naturalHeight),dw=image.naturalWidth*scale,dh=image.naturalHeight*scale,ox=(shell.width-dw)/2,oy=(shell.height-dh)/2;
-  overlay.setAttribute("viewBox",`0 0 ${shell.width} ${shell.height}`);overlay.innerHTML="";
-  S.page.shots.forEach((shot,index)=>{if(!shot.bbox)return;const [x0,y0,x1,y1]=shot.bbox,rect=document.createElementNS("http://www.w3.org/2000/svg","rect");rect.setAttribute("x",ox+x0*dw);rect.setAttribute("y",oy+y0*dh);rect.setAttribute("width",(x1-x0)*dw);rect.setAttribute("height",(y1-y0)*dh);if(index===S.selected)rect.classList.add("selected");rect.onclick=()=>selectSegment(index);overlay.appendChild(rect);});
-  $("viewerBadge").textContent=`${S.page.page} · ${S.selected+1}/${S.page.shots.length}`;
-}
-
-function selectSegment(index) { S.selected=clamp(index,0,S.segments.length-1);renderAll(); }
-function updateInspector() {
-  const segment=currentSegment(),shot=S.page?.shots[S.selected];const disabled=!segment;
-  for(const id of ["inPoint","outPoint","gapAfter","transitionType","transitionDuration","playClipBtn"])$(id).disabled=disabled;
-  if(!segment||!shot){$("shotTitle").textContent="未选择画面";return;}
-  $("shotTitle").textContent=`画面 ${S.selected+1}`;$("shotId").textContent=shot.id;$("shotText").textContent=shot.text||"（此片段没有解说文字）";
-  $("inPoint").value=segment.source_start.toFixed(2);$("outPoint").value=segment.source_end.toFixed(2);$("gapAfter").value=Number(segment.gap_after).toFixed(2);$("transitionType").value=segment.transition_out;$("transitionDuration").value=transitionDuration(segment).toFixed(2);$("transitionDuration").disabled=segment.transition_out==="CUT";$("transitionHint").textContent=segment.transition_out==="CUT"?"硬切无时长":"与下一画面重叠";
-  $("speechStat").textContent=fmt(speechDuration(segment));$("gapStat").textContent=fmt(segment.gap_after);$("visualStat").textContent=fmt(speechDuration(segment)+Number(segment.gap_after)+transitionDuration(segment));
-}
-
-function updateSegmentField() {
-  const segment=currentSegment();if(!segment)return;const index=S.selected,previous=index?S.segments[index-1].source_end:0,next=index<S.segments.length-1?S.segments[index+1].source_start:sourceDuration();
-  segment.source_start=clamp(Number($("inPoint").value),previous,segment.source_end-.08);segment.source_end=clamp(Number($("outPoint").value),segment.source_start+.08,next);segment.gap_after=clamp(Number($("gapAfter").value),0,30);segment.transition_out=$("transitionType").value;segment.transition_duration=segment.transition_out==="CUT"?0:clamp(Number($("transitionDuration").value)||.6,.05,10);S.dirty=true;renderAll();
-}
-
-function makeSource(buffer,start,duration,when=0) { const source=audioContext().createBufferSource();source.buffer=buffer;source.connect(S.ctx.destination);source.start(when,start,duration);return source; }
-function playCurrent() { const segment=currentSegment();if(!segment||!S.buffer)return;makeSource(S.buffer,segment.source_start,speechDuration(segment));setStatus(`试听画面 ${S.selected+1} · ${fmt(speechDuration(segment))}`); }
-
-function previewFrame(index) {
-  const bbox=S.page.shots[index]?.bbox,crop=$("previewCrop"),shell=$("viewerShell"),w=shell.clientWidth,h=shell.clientHeight,image=$("pageImage");if(!bbox)return;
-  const [x0,y0,x1,y1]=bbox,pw=(x1-x0)*image.naturalWidth,ph=(y1-y0)*image.naturalHeight,scale=Math.min(w/pw,h/ph),iw=image.naturalWidth*scale,ih=image.naturalHeight*scale,cx=(x0+x1)/2*iw,cy=(y0+y1)/2*ih;
-  crop.style.backgroundImage=`url('${imageUrl(S.page.page)}')`;crop.style.backgroundSize=`${iw}px ${ih}px`;crop.style.backgroundPosition=`${w/2-cx}px ${h/2-cy}px`;crop.style.display="block";$("overlay").style.display="none";
-}
-
-function startPreview() {
-  if(S.preview){stopPreview();return;}const ctx=audioContext(),starts=outputStarts(),at=ctx.currentTime+.12,sources=[];
-  S.segments.forEach((segment,index)=>sources.push(makeSource(S.buffer,segment.source_start,speechDuration(segment),at+starts[index])));
-  S.preview={at,starts,sources,raf:0,last:-1};$("previewBtn").textContent="■ 停止预览";$("sequencePlayhead").style.display="block";
-  const tick=()=>{if(!S.preview)return;const time=ctx.currentTime-S.preview.at;if(time>outputDuration()){stopPreview();return;}let index=0;for(let i=0;i<starts.length;i++)if(time>=starts[i])index=i;if(index!==S.preview.last){S.preview.last=index;S.selected=index;previewFrame(index);updateInspector();drawOverlay();}const width=parseFloat($("sequenceTrack").style.width)||1,duration=Math.max(sourceDuration(),outputDuration(),.1);$("sequencePlayhead").style.left=`${time/duration*width}px`;S.preview.raf=requestAnimationFrame(tick);};tick();
-}
-function stopPreview() { if(!S.preview)return;S.preview.sources.forEach(source=>{try{source.stop();}catch{}});cancelAnimationFrame(S.preview.raf);S.preview=null;$("previewBtn").textContent="▶ 预览本页";$("previewCrop").style.display="none";$("overlay").style.display="block";$("sequencePlayhead").style.display="none"; }
-
-async function savePage() {
-  if(!S.buffer)return;sanitizeSegments();$("saveBtn").disabled=true;setStatus("正在保存对齐表并更新 director.json…");
-  try { const result=await fetchJson("/api/alignment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({page:S.page.page,source:S.source,audio_duration:S.buffer.duration,segments:S.segments})});S.page.alignment={audio:result.audio,audio_duration:S.buffer.duration,segments:S.segments.map(segment=>({...segment}))};S.page.source={kind:"file",path:result.audio};S.source={...S.page.source};S.dirty=false;renderPageList();populateSourceSelect();setStatus(`✔ ${S.page.page} 已保存：${result.segments} 个画面映射，原始配音未改动`); }
-  catch(error){setStatus(`保存失败：${error.message}`,true);}finally{$("saveBtn").disabled=false;}
-}
-
-function syncScroll(origin) { const value=origin.scrollLeft;for(const element of [$("rulerScroll"),$("sourceScroll"),$("sequenceScroll")])if(element!==origin)element.scrollLeft=value; }
-for(const id of ["rulerScroll","sourceScroll","sequenceScroll"])$(id).addEventListener("scroll",event=>syncScroll(event.currentTarget),{passive:true});
-for(const id of ["inPoint","outPoint","gapAfter","transitionType","transitionDuration"])$(id).addEventListener("change",updateSegmentField);
-$("audioSource").onchange=async()=>{const value=$("audioSource").value;if(!value)return;const source=value==="__parts__"?S.page.source:{kind:"file",path:value};S.page.source=source;await loadAudioSource(source);S.dirty=true;};
-$("autoBtn").onclick=()=>autoAlign(true);$("resetBtn").onclick=async()=>{if(S.page.alignment?.audio){S.page.source={kind:"file",path:S.page.alignment.audio};populateSourceSelect();await loadAudioSource(S.page.source);}else{restoreOrAutoAlign();renderAll();}S.dirty=false;setStatus("已还原为本页上次保存的对齐结果");};$("saveBtn").onclick=savePage;$("previewBtn").onclick=startPreview;$("playClipBtn").onclick=playCurrent;
-$("zoomRange").oninput=()=>{S.zoom=Number($("zoomRange").value)/100;renderRulerAndTracks();};
-window.addEventListener("resize",()=>{if(S.page)renderAll();});
-window.addEventListener("beforeunload",event=>{if(S.dirty){event.preventDefault();event.returnValue="";}});
-document.addEventListener("keydown",event=>{if(["INPUT","SELECT"].includes(event.target.tagName)||!currentSegment())return;if(event.key===" "){event.preventDefault();startPreview();return;}if(!["ArrowLeft","ArrowRight"].includes(event.key))return;const delta=(event.key==="ArrowLeft"?-1:1)*(event.shiftKey?.1:.02),segment=currentSegment(),previous=S.selected?S.segments[S.selected-1].source_end:0,next=S.selected<S.segments.length-1?S.segments[S.selected+1].source_start:sourceDuration();segment.source_end=clamp(segment.source_end+delta,segment.source_start+.08,next);if(segment.source_end<previous)segment.source_end=previous+.08;S.dirty=true;event.preventDefault();renderAll();});
+for(const id of ["rulerScroll","audioScroll","visualScroll"])$(id).onscroll=e=>{const x=e.currentTarget.scrollLeft;for(const other of [$("rulerScroll"),$("audioScroll"),$("visualScroll")])if(other!==e.currentTarget)other.scrollLeft=x};
+for(const id of ["ruler","audioTrack","visualTrack"])$(id).onclick=e=>{if(e.target.closest(".audio-clip,.visual-clip,.boundary"))return;const rect=e.currentTarget.getBoundingClientRect(),w=parseFloat(e.currentTarget.style.width)||rect.width;setCursor((e.clientX-rect.left)/w*pageDuration())};
+for(const id of ["sourceIn","sourceOut","audioStart"])$(id).onchange=editAudio;for(const id of ["visualStart","visualEnd"])$(id).onchange=editVisual;
+$("audioTab").onclick=()=>select("audio",Math.min(S.selected,S.audioClips.length-1));$("visualTab").onclick=()=>select("visual",Math.min(S.selected,S.visualClips.length-1));$("splitBtn").onclick=splitAtCursor;$("mergeBtn").onclick=mergeNext;$("blankBtn").onclick=insertBlank;$("previewBtn").onclick=preview;$("playClipBtn").onclick=playClip;$("saveBtn").onclick=save;
+$("resetBtn").onclick=async()=>{if(S.page.alignment?.audio){S.page.source={kind:"file",path:S.page.alignment.audio};fillSource();await loadSource(S.page.source)}else{autoArrange();renderAll()}S.dirty=false;msg("已还原本页上次保存状态")};
+$("audioSource").onchange=async()=>{const v=$("audioSource").value;if(!v)return;const source=v==="__parts__"?S.page.source:{kind:"file",path:v};S.page.source=source;await loadSource(source);S.dirty=true};$("zoom").oninput=()=>{S.zoom=+$("zoom").value/100;renderTimeline()};
+addEventListener("resize",()=>{if(S.page)renderAll()});addEventListener("beforeunload",e=>{if(S.dirty){e.preventDefault();e.returnValue=""}});addEventListener("keydown",e=>{if(["INPUT","SELECT"].includes(e.target.tagName))return;if(e.key===" "){e.preventDefault();preview()}});
 init();
 </script>
 </body>

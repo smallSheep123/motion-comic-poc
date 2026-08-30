@@ -25,8 +25,7 @@ sys.path.insert(0, ROOT)
 
 from motion_comic.alignment import (  # noqa: E402
     ALIGNMENT_VERSION,
-    apply_page_alignment,
-    validate_segments,
+    apply_page_timeline,
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -191,22 +190,23 @@ def save_alignment(work: str, payload: dict) -> dict:
             raise ValueError("未找到 director.json")
         audio = materialize_source(work, page, payload.get("source") or {})
         audio_duration = float(payload.get("audio_duration", 0))
-        page_shot_ids = [shot.get("id") for shot in director.get("shots", [])
-                         if os.path.basename(shot.get("page", "")) == page]
-        segments = validate_segments(payload.get("segments") or [], page_shot_ids, audio_duration)
-        updated = apply_page_alignment(director, page, audio, segments,
-                                       audio_duration=audio_duration)
+        updated, audio_clips, visual_clips = apply_page_timeline(
+            director, page, audio,
+            payload.get("audio_clips") or [], payload.get("visual_clips") or [],
+            audio_duration=audio_duration)
         alignment_path = os.path.join(work, "timeline_alignment.json")
         alignment = load_json(alignment_path, {"version": ALIGNMENT_VERSION, "pages": {}})
         alignment["version"] = ALIGNMENT_VERSION
         alignment.setdefault("pages", {})[page] = {
             "audio": audio,
             "audio_duration": round(audio_duration, 3),
-            "segments": segments,
+            "audio_clips": audio_clips,
+            "visual_clips": visual_clips,
         }
         write_json_atomic(director_path, updated)
         write_json_atomic(alignment_path, alignment)
-    return {"ok": True, "page": page, "audio": audio, "segments": len(segments)}
+    return {"ok": True, "page": page, "audio": audio,
+            "audio_clips": len(audio_clips), "visual_clips": len(visual_clips)}
 
 
 class Handler(BaseHTTPRequestHandler):
