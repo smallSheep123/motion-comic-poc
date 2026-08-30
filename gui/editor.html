@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>漫画格子切割编辑器</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "Microsoft YaHei", sans-serif; background: #1b1b1f; color: #ddd; display: flex; height: 100vh; overflow: hidden; }
+  #side { width: 130px; background: #232329; overflow-y: auto; padding: 8px; flex-shrink: 0; }
+  #side img { width: 100%; margin-bottom: 8px; border: 2px solid transparent; cursor: pointer; display: block; }
+  #side img.cur { border-color: #4f9cf9; }
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #bar { padding: 8px 12px; background: #26262c; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button { background: #3a3a44; color: #ddd; border: 1px solid #555; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  button:hover { background: #4a4a56; }
+  button.primary { background: #2d6ecf; border-color: #2d6ecf; }
+  #status { margin-left: auto; color: #9a9; font-size: 13px; }
+  #stage { flex: 1; overflow: auto; padding: 16px; text-align: center; }
+  #wrap { position: relative; display: inline-block; }
+  #img { display: block; max-width: 100%; height: auto; user-select: none; }
+  .box { position: absolute; border: 2px solid #ff5252; cursor: move; }
+  .box.sel { border-color: #4f9cf9; box-shadow: 0 0 0 1px #4f9cf9; }
+  .box .tag { position: absolute; top: -22px; left: -2px; background: #ff5252; color: #fff; font-size: 12px; padding: 1px 7px; }
+  .box.sel .tag { background: #4f9cf9; }
+  .h { position: absolute; width: 12px; height: 12px; background: #fff; border: 2px solid #333; border-radius: 2px; }
+  .h.nw { left: -7px; top: -7px; cursor: nwse-resize; }
+  .h.ne { right: -7px; top: -7px; cursor: nesw-resize; }
+  .h.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+  .h.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+  #panelbar { padding: 8px 12px; background: #26262c; display: flex; gap: 8px; align-items: center; }
+  #text { flex: 1; height: 52px; background: #1b1b1f; color: #ddd; border: 1px solid #555; padding: 6px; font-size: 13px; resize: none; }
+  #hint { padding: 4px 12px; background: #202024; color: #888; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="side"></div>
+<div id="main">
+  <div id="bar">
+    <button onclick="addBox()">＋ 添加框</button>
+    <button onclick="delBox()">删除选中</button>
+    <button onclick="moveSel(-1)">◀ 顺序前移</button>
+    <button onclick="moveSel(1)">顺序后移 ▶</button>
+    <button onclick="save()">保存本页</button>
+    <button class="primary" onclick="saveNext()">保存并下一页 ▶</button>
+    <span id="status"></span>
+  </div>
+  <div id="stage"><div id="wrap"><img id="img"><div id="boxes"></div></div></div>
+  <div id="panelbar">
+    <span>选中格解说词：</span>
+    <textarea id="text" placeholder="选中一个格子后，为它写解说词（留空 = 该格静默展示）"></textarea>
+  </div>
+  <div id="hint">拖动=移动 | 四角白点=调整大小 | 方向键微调(Shift×10) | Del=删除 | A=添加框 | Ctrl+S=保存</div>
+</div>
+<script>
+const S = { pages: [], cur: 0, panels: [], sel: -1, dragging: null };
+
+async function api(path, body) {
+  const opt = body ? { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body) } : {};
+  const r = await fetch(path, opt);
+  return r.json();
+}
+
+async function init() {
+  const d = await api("/api/pages");
+  S.pages = d.pages;
+  const side = document.getElementById("side");
+  d.pages.forEach((p, i) => {
+    const img = document.createElement("img");
+    img.src = "/image/" + p.page;
+    img.title = p.page;
+    img.onclick = () => loadPage(i);
+    side.appendChild(img);
+  });
+  loadPage(0);
+}
+
+function loadPage(i) {
+  S.cur = i; S.sel = -1;
+  const p = S.pages[i];
+  S.panels = p.panels.map(x => ({ bbox: x.bbox.slice(), text: x.text || "" }));
+  document.getElementById("img").src = "/image/" + p.page;
+  document.querySelectorAll("#side img").forEach((im, k) => im.classList.toggle("cur", k === i));
+  draw();
+}
+
+function draw() {
+  const boxLayer = document.getElementById("boxes");
+  boxLayer.innerHTML = "";
+  S.panels.forEach((p, i) => {
+    const b = document.createElement("div");
+    b.className = "box" + (i === S.sel ? " sel" : "");
+    const [x0, y0, x1, y1] = p.bbox.map(v => (v * 100).toFixed(3) + "%");
+    b.style.left = x0; b.style.top = y0; b.style.width = `calc(${x1} - ${x0})`; b.style.height = `calc(${y1} - ${y0})`;
+    const tag = document.createElement("span");
+    tag.className = "tag"; tag.textContent = "#" + (i + 1) + (p.text ? " ✓" : "");
+    b.appendChild(tag);
+    b.addEventListener("mousedown", e => { if (e.target === b) { S.sel = i; startDrag(e, "move"); } });
+    for (const c of ["nw", "ne", "sw", "se"]) {
+      const h = document.createElement("div");
+      h.className = "h " + c;
+      h.addEventListener("mousedown", e => { e.stopPropagation(); S.sel = i; startDrag(e, c); });
+      b.appendChild(h);
+    }
+    boxLayer.appendChild(b);
+  });
+  const t = document.getElementById("text");
+  t.value = S.sel >= 0 ? S.panels[S.sel].text : "";
+  t.disabled = S.sel < 0;
+  document.getElementById("status").textContent =
+    `${S.pages[S.cur].page} · ${S.panels.length} 格 · 选中 ${S.sel >= 0 ? "#" + (S.sel + 1) : "无"}`;
+}
+
+function rect() { return document.getElementById("img").getBoundingClientRect(); }
+
+function startDrag(e, mode) {
+  const r = rect();
+  S.dragging = { mode, sx: e.clientX, sy: e.clientY, orig: S.panels[S.sel].bbox.slice(), r };
+  draw();
+  e.preventDefault();
+}
+document.addEventListener("mousemove", e => {
+  if (!S.dragging || S.sel < 0) return;
+  const { mode, sx, sy, orig, r } = S.dragging;
+  let dx = (e.clientX - sx) / r.width, dy = (e.clientY - sy) / r.height;
+  const b = orig.slice();
+  if (mode === "move") { b[0] += dx; b[2] += dx; b[1] += dy; b[3] += dy; }
+  else {
+    if (mode.includes("w")) b[0] += dx;
+    if (mode.includes("e")) b[2] += dx;
+    if (mode.includes("n")) b[1] += dy;
+    if (mode.includes("s")) b[3] += dy;
+  }
+  clampBox(b);
+  S.panels[S.sel].bbox = b;
+  draw();
+});
+document.addEventListener("mouseup", () => { S.dragging = null; });
+
+function clampBox(b) {
+  b[0] = Math.min(Math.max(b[0], 0), 0.99);
+  b[1] = Math.min(Math.max(b[1], 0), 0.99);
+  b[2] = Math.min(Math.max(b[2], b[0] + 0.01), 1);
+  b[3] = Math.min(Math.max(b[3], b[1] + 0.01), 1);
+}
+
+function nudge(dx, dy) {
+  if (S.sel < 0) return;
+  const b = S.panels[S.sel].bbox;
+  const k = shiftDown ? 0.01 : 0.001;
+  b[0] += dx * k; b[2] += dx * k; b[1] += dy * k; b[3] += dy * k;
+  clampBox(b); draw();
+}
+let shiftDown = false;
+document.addEventListener("keydown", e => {
+  shiftDown = e.shiftKey;
+  if (e.target.tagName === "TEXTAREA") return;
+  if (e.key === "Delete" && S.sel >= 0) { delBox(); return; }
+  if (e.key.toLowerCase() === "a") { addBox(); return; }
+  if (e.ctrlKey && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
+  const map = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (map[e.key]) { e.preventDefault(); nudge(map[e.key][0], map[e.key][1]); }
+});
+document.addEventListener("keyup", e => { shiftDown = e.shiftKey; });
+
+function addBox() {
+  S.panels.push({ bbox: [0.3, 0.3, 0.7, 0.55], text: "" });
+  S.sel = S.panels.length - 1; draw();
+}
+function delBox() {
+  if (S.sel < 0) return;
+  S.panels.splice(S.sel, 1); S.sel = -1; draw();
+}
+function moveSel(d) {
+  const j = S.sel + d;
+  if (S.sel < 0 || j < 0 || j >= S.panels.length) return;
+  [S.panels[S.sel], S.panels[j]] = [S.panels[j], S.panels[S.sel]];
+  S.sel = j; draw();
+}
+document.getElementById("text").addEventListener("input", e => {
+  if (S.sel >= 0) { S.panels[S.sel].text = e.target.value; draw(); }
+});
+
+async function save() {
+  const p = S.pages[S.cur];
+  const r = await api("/api/save", { page: p.page, panels: S.panels });
+  document.getElementById("status").textContent = `已保存 ${p.page}（${r.count} 格）`;
+}
+async function saveNext() {
+  await save();
+  if (S.cur + 1 < S.pages.length) loadPage(S.cur + 1);
+  else document.getElementById("status").textContent = "已是最后一页（全部保存完毕）";
+}
+
+init();
+</script>
+</body>
+</html>

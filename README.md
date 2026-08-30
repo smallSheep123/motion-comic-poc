@@ -1,37 +1,86 @@
-# 动态漫自动化 PoC 技术验证
+# motion-comic-poc
 
-结论：**可行**。三个关键环节全部实测通过（2026-08-27）。
+视觉导演 → 时间轴编译 → 程序化渲染的动态漫视频引擎。
+PoC 阶段已验证视觉定位精度（bbox 偏差 2~5% 画布宽）；v0.2 按评审完成引擎化重构。
 
-## 实测结果
+## 架构
 
-| 环节 | 方法 | 结果 |
-|---|---|---|
-| 环境 | python 3.14 + ffmpeg 8.0.1 + PIL + numpy | 全部就绪，零新增依赖 |
-| 视觉定位 | 视觉模型读页面图 → 气泡/焦点 bbox | 偏差 ≈ 画布宽度的 2~5%，加安全边距后满足运镜需求；气泡文字可读、情绪焦点判断正确 |
-| 程序化渲染 | PIL 逐帧(虚拟相机 crop+easing) pipe→ffmpeg | 1080x1920@30fps、h264+aac、时长精确；216 帧渲染 < 10 秒 |
-| 转场 | 两镜交叉区 alpha blend (crossfade 0.8s) | 抽帧检查过渡自然，无黑帧/闪烁/花屏 |
+```
+漫画页 + 解说词
+   │  (视觉模型只做选择题：focus/motion/transition，坐标一律 0~1 归一化)
+   ▼
+director.json ──────────► narration_manifest.json ──► 任意 TTS 引擎补齐 wav
+   │                                                      │
+   │            Timeline Compiler（确定性规则）            │
+   │            · ffprobe 实测语音时长 → 镜头时长          │
+   │            · safe_margin / 边界钳制 / 9:16 比例锁定   │
+   │            · min/max 变焦，防人脸出屏、气泡被裁        │
+   ▼                                                      ▼
+render_timeline.json ◄─────────────────────────────────────┘
+   │  同时派生: subtitles.srt / dubbing_sheet.md
+   ▼
+Renderer（子像素仿射裁剪 + 2x 超采样 + LANCZOS 下采样，pipe → ffmpeg）
+   │  音轨按时间戳自动铺位（adelay + amix）
+   ▼
+episode.mp4（可选再进剪映精修：pyJianYingDraft 草稿导出）
+```
 
-## 文件说明
+核心原则：**AI 负责艺术判断，Compiler 负责规则，Renderer 负责数学**，三层互不渗透。
 
-- `gen_pages.py` — 生成测试漫画页 + `ground_truth.json`（已知坐标真值，用于量化视觉精度）
-- `timeline.json` — 时间轴示例（这就是视觉模型+编排器最终的输出物）
-- `render_poc.py` — 渲染器原型：虚拟相机(crop+easeInOutCubic) + crossfade + 音轨 mux
-- `output/poc.mp4` — 成品（shot1 缓推特写 + crossfade + shot2 长条漫下扫 + beep 音轨）
-- `qc/frame_*.png` — 抽帧质检演示
-
-## 生产化要点（PoC 未含）
-
-1. TTS 后以真实语音时长驱动每镜 duration（停留 = max(语音+0.4s, 可读时长)）
-2. 批量时视觉分析走智谱开放平台 vision API，与本地验证同级能力
-3. 多进程按镜头并行渲染，长篇横向扩容
-4. 抽帧 QC 闭环：转场前后±0.5s 抽帧回视觉模型检查构图/遮挡
-5. 转场模板库统一保底：crossfade 建议 0.4~0.6s，动作衔接可用 whip-pan，白底页面长叠化会显"透"
-6. 衔接剪映人工润色：用 pyJianYingDraft 把 timeline 转成剪映草稿(draft_content.json)，剪映打开即见已排好的轨道，人工只做精修
-
-## 复现
+## 快速开始
 
 ```bash
-python gen_pages.py
-ffmpeg -y -f lavfi -i "sine=frequency=440:duration=7.2" -af volume=0.15 audio/beep.wav
-python render_poc.py
+python gen_pages.py                                # 生成测试漫画页（含坐标真值）
+python -m motion_comic manifest examples/director.json -o output   # ① 配音清单
+python examples/make_demo_audio.py                 # ② TTS 步骤（演示：Windows SAPI 中文音色）
+python -m motion_comic compile examples/director.json -o output    # ③ 编译时间轴+字幕
+python -m motion_comic render output/render_timeline.json -o output/episode.mp4  # ④ 渲染
+python -m unittest discover -s tests               # 回归测试
 ```
+
+## 配音工作流（为什么是"分镜级音频"）
+
+引擎与 TTS 完全解耦，约定只有一个：**每镜一个 wav，路径写在 manifest 里**。
+
+1. `manifest` 产出每镜的文本/音色/目标 wav 路径；
+2. 任意引擎（edge-tts / 智谱 / 火山 / 人声录音）把 wav 补齐——可按镜重配、可多音色混用；
+3. `compile` 用 ffprobe **实测**每个 wav 时长（+0.2s 头 / +0.4s 尾）得到镜头时长，
+   时间轴、字幕、混音零对齐误差；
+4. 导出物：`subtitles.srt`（分句级时间戳，按字数比例分配实测时长，剪映可直接导入）、
+   `dubbing_sheet.md`（人工配音/审听时间表）、`render_timeline.json`（全部时间戳的机读源）。
+
+整段录音后想切回分镜？后续可用 whisper 强制对齐，列为 roadmap，不进 v1。
+
+## 目录
+
+```
+motion_comic/          引擎包：schema(词表校验) / compiler(相机求解+时间轴)
+                      / renderer(渲染) / subtitles(字幕配音导出) / audio / cli
+renderers/reference_pil.py   冻结的 PoC 渲染器（对照调试用）
+examples/              director.json 示例 + 演示配音脚本
+tests/                 compiler 回归测试（11 例，纯逻辑不碰 ffmpeg）
+gen_pages.py           测试页生成器 + ground_truth.json（视觉精度基准）
+output/episode.mp4     演示成片（3 镜：缓推特写→长条下扫→拉远收尾，真人声解说）
+```
+
+## 抗抖动（评审 P4）
+
+两级措施：①子像素仿射裁剪（`Image.transform` 浮点取样，消除整数取整整微抖）；
+②2 倍超采样 + LANCZOS 下采样（抑制网点 moiré 与细线 shimmer）。
+`supersample: 1` 可关闭换速度。
+
+## Roadmap
+
+- [x] P0 N 镜头 + 每镜转场（CUT/CROSSFADE/FADE_BLACK/FADE_WHITE）
+- [x] P1 归一化坐标（director 层与分辨率解耦）
+- [x] P2 Camera Compiler（safe_margin / clamp / 变焦上下限）
+- [x] P3 实测 TTS 时长驱动时间轴 + SRT/配音表导出
+- [x] P4 子像素 + 超采样渲染
+- [ ] P5 十页真实漫画 benchmark（含网点页、右开本、无框分镜等边角案例）
+- [ ] 视觉 API 批量页面分析 → director.json 自动生成
+- [ ] pyJianYingDraft 剪映草稿导出（optional exporter）
+- [ ] 并行渲染 / BGM ducking / loudnorm / 多尺寸导出
+
+## License
+
+MIT

@@ -1,0 +1,452 @@
+{
+  "aspect": "9:16",
+  "crossfade_sec": 0.6,
+  "supersample": 1,
+  "camera": {
+    "min_crop_frac": 0.45,
+    "safe_margin": 0.1
+  },
+  "shots": [
+    {
+      "id": "rm_000",
+      "page": "real_manga/pages/p00.jpg",
+      "motion": "HOLD",
+      "transition_out": "FADE_BLACK",
+      "narration": {
+        "text": "隼人与清流的铁道之旅，第三话——决胜！青函隧道大工事。这一话，我们来讲一条海底隧道的名字，和一群把命留在海底的人。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_000.mp3"
+      }
+    },
+    {
+      "id": "rm_001",
+      "page": "real_manga/pages/p01.jpg",
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "故事从一通突然的求救电话开始。有人问：等等，为什么连我们都叫去北海道旅行？答案——是朋友们收到了吃不完的乌贼饭。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_001.mp3",
+        "subject": [
+          0.1041,
+          0.08,
+          0.893,
+          0.4452
+        ]
+      }
+    },
+    {
+      "id": "rm_001b",
+      "page": "real_manga/pages/p02.jpg",
+      "motion": "HOLD",
+      "fixed_duration": 6.0,
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "",
+        "voice": "narrator",
+        "audio": ""
+      }
+    },
+    {
+      "id": "rm_002",
+      "page": "real_manga/pages/p03.jpg",
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "别误会，龙司、龙、新巴、雷、银、小常、鹰虎，全都约好了坐飞机过去。好久不见，想想就开心。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_002.mp3",
+        "subject": [
+          0.1046,
+          0.0817,
+          0.8968,
+          0.6183
+        ]
+      }
+    },
+    {
+      "id": "rm_003",
+      "page": "real_manga/pages/p04.jpg",
+      "motion": "HOLD",
+      "transition_out": "CUT",
+      "narration": {
+        "text": "车厢里，大家聊得起劲。而说起青函隧道，隼人的话匣子一下子打开了。轰隆隆隆，列车钻进了海底。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_003.mp3"
+      }
+    },
+    {
+      "id": "rm_004",
+      "page": "real_manga/pages/p04.jpg",
+      "focus": {
+        "bbox": [
+          0.0151,
+          0.0081,
+          0.9434,
+          0.6704
+        ],
+        "reason": "上格：握拳兴奋的隼人与H5宣言气泡（原文台词页）"
+      },
+      "motion": "HOLD",
+      "transition_out": "CUT",
+      "narration": {
+        "text": "看好了，H5 新干线，马上穿越青函隧道！隧道的那头，就是绿意盎然的、夏天的北海道！",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_004.mp3",
+        "subject": [
+          0.0151,
+          0.0081,
+          0.9434,
+          0.6704
+        ]
+      }
+    },
+    {
+      "id": "rm_004b",
+      "page": "real_manga/pages/p05.jpg",
+      "motion": "HOLD",
+      "fixed_duration": 6.0,
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "",
+        "voice": "narrator",
+        "audio": ""
+      }
+    },
+    {
+      "id": "rm_005",
+      "page": "real_manga/pages/p06.jpg",
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.0813,
+          0.893,
+          0.5864
+        ],
+        "reason": "大幅合十闭眼特写，庄重"
+      },
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "可就在列车驶入海底之前，隼人却突然闭上眼睛，双手合十。这个动作，叫默祷。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_005.mp3",
+        "subject": [
+          0.1041,
+          0.0813,
+          0.893,
+          0.5864
+        ]
+      }
+    },
+    {
+      "id": "rm_006",
+      "page": "real_manga/pages/p07.jpg",
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "清流不解：贯通？那是做什么？隼人说——是为了向那些把生命献给这条隧道工程的土木先辈们，献上感谢与敬意。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_006.mp3"
+      }
+    },
+    {
+      "id": "rm_007",
+      "page": "real_manga/pages/p08.jpg",
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.0813,
+          0.893,
+          0.3612
+        ],
+        "reason": "上格：隼人讲述24年工程34人殉职"
+      },
+      "motion": "HOLD",
+      "transition_out": "CUT",
+      "narration": {
+        "text": "二十四年的大工程，三十四位殉职者。这不是故事，是真实发生在这片海底的事。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_007.mp3",
+        "subject": [
+          0.1041,
+          0.0813,
+          0.893,
+          0.3612
+        ]
+      }
+    },
+    {
+      "id": "rm_008",
+      "page": "real_manga/pages/p08.jpg",
+      "motion": "HOLD",
+      "transition_out": "CUT",
+      "narration": {
+        "text": "这是我父亲告诉我的。清流轻声问：为什么要做到这个地步……",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_008.mp3",
+        "subject": [
+          0.1041,
+          0.3612,
+          0.893,
+          0.6038
+        ]
+      },
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.3612,
+          0.893,
+          0.6038
+        ],
+        "reason": "中格：清流发问"
+      }
+    },
+    {
+      "id": "rm_009",
+      "page": "real_manga/pages/p08.jpg",
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.6038,
+          0.893,
+          0.9167
+        ],
+        "reason": "下格：洞爷丸沉没的惊涛海面——语音说到海难时镜头正对沉船"
+      },
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "因为隔开青森和北海道的这片海峡，是吃人的海。一九五四年，台风洞爷丸号在函馆湾倾覆，一千一百五十五人遇难——日本海难史上最惨痛的一页。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_009.mp3",
+        "subject": [
+          0.1041,
+          0.6038,
+          0.893,
+          0.9167
+        ]
+      }
+    },
+    {
+      "id": "rm_010",
+      "page": "real_manga/pages/p09.jpg",
+      "motion": "PAN_DOWN",
+      "transition_out": "CUT",
+      "narration": {
+        "text": "所以人们决定，在海底修一条路。为了不再让船夺走生命——从下面，把它打通！可挖开才知道，对手是大海本身。涌水像猛兽一样扑向工人。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_010.mp3"
+      }
+    },
+    {
+      "id": "rm_011",
+      "page": "real_manga/pages/p09.jpg",
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.7312,
+          0.893,
+          0.9167
+        ],
+        "reason": "第三格：无路可逃的地底，大水灌入隧道"
+      },
+      "motion": "HOLD",
+      "transition_out": "CUT",
+      "narration": {
+        "text": "在无路可逃的地底，曾经有一次，大量的海水灌进了隧道。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_011.mp3",
+        "subject": [
+          0.1041,
+          0.7312,
+          0.893,
+          0.9167
+        ]
+      }
+    },
+    {
+      "id": "rm_012",
+      "page": "real_manga/pages/p10.jpg",
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.0813,
+          0.893,
+          0.5793
+        ],
+        "reason": "上格：涌水中奔向止水扉的背影——牺牲者的选择"
+      },
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "再这样下去，所有人都完蛋。就在那时，有一个人朝止水扉走去。他清楚，自己可能再也回不来了。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_012.mp3",
+        "subject": [
+          0.1041,
+          0.0813,
+          0.893,
+          0.5793
+        ]
+      }
+    },
+    {
+      "id": "rm_012b",
+      "page": "real_manga/pages/p11.jpg",
+      "motion": "HOLD",
+      "fixed_duration": 5.0,
+      "transition_out": "FADE_WHITE",
+      "narration": {
+        "text": "",
+        "voice": "narrator",
+        "audio": ""
+      }
+    },
+    {
+      "id": "rm_013",
+      "page": "real_manga/pages/p12.jpg",
+      "focus": {
+        "bbox": [
+          0.0198,
+          0.3585,
+          0.9802,
+          0.9899
+        ],
+        "reason": "下格：隼人握拳宣言「未来を繋ぐんだよ」"
+      },
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "他的行动，救下了许多同伴的命。这条隧道，是土木先辈们把信念贯穿出来的路。这就是土木的力量——连接的，是未来。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_013.mp3",
+        "subject": [
+          0.0198,
+          0.3585,
+          0.9802,
+          0.9899
+        ]
+      }
+    },
+    {
+      "id": "rm_014",
+      "page": "real_manga/pages/p13.jpg",
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.4899,
+          0.893,
+          0.9167
+        ],
+        "reason": "下格大格：清流合掌立志「俺もツラヌキと同じ事がしたくなった」"
+      },
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "听完这些，清流也轻轻合起了手掌。我也想，做和贯通隧道一样的事。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_014.mp3",
+        "subject": [
+          0.1041,
+          0.4899,
+          0.893,
+          0.9167
+        ]
+      }
+    },
+    {
+      "id": "rm_015",
+      "page": "real_manga/pages/p14.jpg",
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "我也一样！嘿嘿，这么说出来还挺不好意思的。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_015.mp3"
+      }
+    },
+    {
+      "id": "rm_016",
+      "page": "real_manga/pages/p15.jpg",
+      "motion": "PAN_DOWN",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "四个人一起合上手掌。隧道尽头，光涌了进来。看，光！",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_016.mp3"
+      }
+    },
+    {
+      "id": "rm_016b",
+      "page": "real_manga/pages/p16.jpg",
+      "motion": "PAN_DOWN",
+      "fixed_duration": 8.0,
+      "transition_out": "CUT",
+      "narration": {
+        "text": "",
+        "voice": "narrator",
+        "audio": ""
+      }
+    },
+    {
+      "id": "rm_017",
+      "page": "real_manga/pages/p17.jpg",
+      "motion": "HOLD",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "然而在站台等着他们的，是扛着摄像机的上田阿梓！太慢了，大家都到齐了！你怎么会在这儿？！是你邀请我时表情很奇怪吧！",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_017.mp3"
+      }
+    },
+    {
+      "id": "rm_018",
+      "page": "real_manga/pages/p18.jpg",
+      "motion": "PAN_DOWN",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "从大宫去北海道，坐飞机不是更快吗？你不懂坐 H5 穿越青函隧道的浪漫！就是这样，上田阿梓总是格格不入——你又被他毒害了！",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_018.mp3"
+      }
+    },
+    {
+      "id": "rm_019",
+      "page": "real_manga/pages/p19.jpg",
+      "focus": {
+        "bbox": [
+          0.1041,
+          0.585,
+          0.893,
+          0.9167
+        ],
+        "reason": "突然认真的提问，情绪转折"
+      },
+      "motion": "HOLD",
+      "transition_out": "FADE_WHITE",
+      "narration": {
+        "text": "闹够了，隼人忽然轻声问：我说，贯通……你的父亲，是不是也出过工地上的事故。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_019.mp3",
+        "subject": [
+          0.1041,
+          0.585,
+          0.893,
+          0.9167
+        ]
+      }
+    },
+    {
+      "id": "rm_020",
+      "page": "real_manga/pages/p20.jpg",
+      "motion": "HOLD",
+      "transition_out": "FADE_BLACK",
+      "narration": {
+        "text": "哎呀，别说这么沉重的话题啦！快点去吃小光的乌贼饭吧！啊——对啊。第三两，完。下一话，继续铁道之旅。",
+        "voice": "narrator",
+        "audio": "real_manga/audio/rm_020.mp3"
+      }
+    }
+  ]
+}

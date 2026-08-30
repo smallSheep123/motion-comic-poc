@@ -1,2 +1,17 @@
 __pycache__/
 *.pyc
+
+# 版权素材与生成产物不入库（脚本与坐标 JSON 保留）
+real_manga/pages/
+real_manga/audio/
+real_manga/output/
+real_manga/panels_vis/
+real_manga2/pages/
+real_manga2/audio/
+real_manga2/output/
+real_manga2/panels_cut/
+real_manga2/panels_vis/
+research/*.mp4
+research/frames_*/
+*.mp4
+*.webm

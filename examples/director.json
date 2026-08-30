@@ -1,0 +1,49 @@
+{
+  "aspect": "9:16",
+  "crossfade_sec": 0.6,
+  "supersample": 2,
+  "camera": { "min_crop_frac": 0.35, "safe_margin": 0.08 },
+  "shots": [
+    {
+      "id": "shot_001",
+      "page": "pages/page1.png",
+      "focus": {
+        "bbox": [0.60, 0.34, 0.97, 0.60],
+        "reason": "本页情绪高点：龙脸特写（对应 ground_truth.focus_dragon_head）"
+      },
+      "motion": "SLOW_PUSH",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "小镇的清晨，巨龙的阴影笼罩了天空。那条龙来了！",
+        "voice": "narrator",
+        "audio": "audio/shot_001.wav"
+      }
+    },
+    {
+      "id": "shot_002",
+      "page": "pages/page2.png",
+      "motion": "PAN_DOWN",
+      "transition_out": "CROSSFADE",
+      "narration": {
+        "text": "而在这个深夜的小镇，月光下出现了一个熟悉的身影。是你啊。一切，才刚刚开始。",
+        "voice": "narrator",
+        "audio": "audio/shot_002.wav"
+      }
+    },
+    {
+      "id": "shot_003",
+      "page": "pages/page1.png",
+      "focus": {
+        "bbox": [0.05, 0.69, 0.95, 0.97],
+        "reason": "人群奔逃全景，收尾镜头"
+      },
+      "motion": "SLOW_PULL",
+      "transition_out": "FADE_BLACK",
+      "narration": {
+        "text": "人们四散奔逃。来不及了。",
+        "voice": "narrator",
+        "audio": "audio/shot_003.wav"
+      }
+    }
+  ]
+}

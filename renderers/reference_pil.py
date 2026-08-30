@@ -11,7 +11,7 @@ import subprocess
 import numpy as np
 from PIL import Image
 
-BASE = os.path.dirname(os.path.abspath(__file__))
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 仓库根
 OUT_W, OUT_H, FPS = 1080, 1920, 30
 ASPECT = OUT_W / OUT_H  # 0.5625
 
