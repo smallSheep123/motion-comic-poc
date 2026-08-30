@@ -92,12 +92,22 @@ def mix_audio_tracks(tracks: list[dict], total_sec: float, out_wav: str) -> str:
     sr = 44100
     buf = np.zeros(int(total_sec * sr) + sr, dtype=np.float32)  # +1s 余量
     for tr in tracks:
+        source_start = max(float(tr.get("source_start", 0.0)), 0.0)
+        source_duration = tr.get("source_duration")
+        trim_args = []
+        if source_start > 0:
+            trim_args += ["-ss", f"{source_start:.6f}"]
+        if source_duration is not None:
+            trim_args += ["-t", f"{max(float(source_duration), 0.0):.6f}"]
         p = subprocess.run(
-            ["ffmpeg", "-v", "error", "-i", tr["file"], "-f", "s16le",
+            ["ffmpeg", "-v", "error", *trim_args, "-i", tr["file"], "-f", "s16le",
              "-acodec", "pcm_s16le", "-ac", "1", "-ar", str(sr), "-"],
             capture_output=True, check=True)
         x = np.frombuffer(p.stdout, dtype=np.int16).astype(np.float32) / 32768.0
         i0 = int(tr["start"] * sr)
+        if i0 >= len(buf):
+            continue
+        x = x[:len(buf) - i0]
         buf[i0:i0 + len(x)] += x
     pcm = np.clip(buf, -1.0, 1.0)
     with wave.open(out_wav, "wb") as w:
@@ -106,6 +116,11 @@ def mix_audio_tracks(tracks: list[dict], total_sec: float, out_wav: str) -> str:
         w.setframerate(sr)
         w.writeframes((pcm * 32767).astype(np.int16).tobytes())
     return out_wav
+
+
+def rooted_audio_tracks(tracks: list[dict], root: str) -> list[dict]:
+    """Resolve media paths without dropping source trim metadata."""
+    return [{**track, "file": os.path.join(root, track["file"])} for track in tracks]
 
 
 def _blend(a, b, p, transition):
@@ -155,7 +170,7 @@ def render(timeline_path: str, out_mp4: str, root: str = ".") -> dict:
     mixed_wav = None
     if tracks:
         mixed_wav = os.path.join(os.path.dirname(os.path.abspath(out_mp4)), "_narration_mixed.wav")
-        mix_audio_tracks([{"file": os.path.join(root, t["file"]), "start": t["start"]} for t in tracks],
+        mix_audio_tracks(rooted_audio_tracks(tracks, root),
                          float(total), mixed_wav)
 
     os.makedirs(os.path.dirname(os.path.abspath(out_mp4)), exist_ok=True)
@@ -174,12 +189,13 @@ def render(timeline_path: str, out_mp4: str, root: str = ".") -> dict:
     for n in range(n_frames):
         t = n / fps
         i = owner(t)
-        if i + 1 < len(shots) and t >= starts[i + 1] - 1e-9:
-            tr = shots[i].get("transition_out", "CUT")
-            ov = 0.0 if tr == "CUT" else xf
-            if ov > 0:
-                p = max(0.0, min(1.0, (t - starts[i + 1]) / ov))
-                frame = _blend(shot_frame(i, t), shot_frame(i + 1, t), p, tr)
+        if i > 0:
+            prev = i - 1
+            tr = shots[prev].get("transition_out", "CUT")
+            ov = float(shots[prev].get("transition_duration", 0.0 if tr == "CUT" else xf))
+            if ov > 0 and t < starts[i] + ov:
+                p = max(0.0, min(1.0, (t - starts[i]) / ov))
+                frame = _blend(shot_frame(prev, t), shot_frame(i, t), p, tr)
             else:
                 frame = shot_frame(i, t)
         else:

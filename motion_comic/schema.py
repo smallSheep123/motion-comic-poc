@@ -7,6 +7,8 @@
 - 具体像素矩形、时长、时间戳全部由 compiler 用确定性规则计算。
 """
 
+import math
+
 ASPECTS = {"9:16": 9 / 16, "16:9": 16 / 9, "1:1": 1.0, "4:5": 4 / 5}
 
 # 规范运镜（语义别名 -> 规范名）
@@ -42,6 +44,10 @@ def validate_director(d: dict) -> None:
         tr = sh.get("transition_out", "CUT")
         if tr not in TRANSITIONS:
             raise ValueError(f"shot[{i}] 未知 transition: {tr}，可选 {TRANSITIONS}")
+        tr_sec = sh.get("transition_sec")
+        if tr_sec is not None and (not isinstance(tr_sec, (int, float)) or
+                                   not math.isfinite(tr_sec) or tr_sec < 0):
+            raise ValueError(f"shot[{i}] transition_sec 必须是非负有限数字")
         f = sh.get("focus")
         if f:
             bbox = f.get("bbox")

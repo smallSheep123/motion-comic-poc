@@ -1,398 +1,439 @@
-<!DOCTYPE html>
-<html lang="zh">
+<!doctype html>
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>时间轴对齐编辑器</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>画面与配音同步工作台</title>
 <style>
-  * { box-sizing: border-box; margin: 0; }
-  body { font-family: "Microsoft YaHei", sans-serif; background: #1b1b1f; color: #ddd; display: flex; height: 100vh; overflow: hidden; }
-  #side { width: 110px; background: #232329; overflow-y: auto; padding: 6px; flex-shrink: 0; }
-  #side img { width: 100%; margin-bottom: 6px; border: 2px solid transparent; cursor: pointer; display: block; }
-  #side img.cur { border-color: #4f9cf9; }
-  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  #bar { padding: 8px 12px; background: #26262c; display: flex; gap: 10px; align-items: center; }
-  button { background: #3a3a44; color: #ddd; border: 1px solid #555; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
-  button:hover { background: #4a4a56; }
-  button.primary { background: #2d6ecf; border-color: #2d6ecf; }
-  #status { margin-left: auto; color: #9a9; font-size: 13px; }
-  #stage { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; gap: 16px; align-items: flex-start; }
-  #fig { position: relative; width: 30%; flex-shrink: 0; }
-  #fig img { width: 100%; display: block; cursor: pointer; }
-  #fig svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
-  #fig rect { fill: rgba(79,156,249,0.06); stroke: #4f9cf9; stroke-width: 1.5; cursor: pointer; }
-  #fig rect.on { stroke: #ffb340; fill: rgba(255,179,64,0.15); stroke-width: 3; }
-  #right { flex: 1; min-width: 0; padding-top: 8px; position: relative; }
-  #pv { position: absolute; inset: 0; display: none; z-index: 3; }
-  #wave { width: 100%; height: 100px; display: block; background: #101014; border-radius: 4px; }
-  #track { position: relative; height: 116px; margin-top: 6px; }
-  .blk { position: absolute; top: 0; height: 100%; border: 1px solid #666; border-radius: 5px; background: #26262e; overflow: hidden; }
-  .blk .thumb { position: absolute; left: 4px; top: 4px; width: 52px; height: 70px; border-radius: 3px; pointer-events: none; background: #111; overflow: hidden; }
-  .blk .info { position: absolute; left: 62px; right: 6px; top: 4px; pointer-events: none; }
-  .blk .dur { font-size: 15px; color: #ffd479; font-weight: bold; }
-  .blk .txt { font-size: 12px; color: #bbb; line-height: 1.3; margin-top: 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
-  .blk.sel { border-color: #ffb340; background: #2c2c38; }
-  .gapz { position: absolute; top: 0; height: 100%; background: repeating-linear-gradient(45deg, #1c2027, #1c2027 6px, #232833 6px, #232833 12px); border: 1px dashed #4a5568; }
-  .hdl { position: absolute; width: 10px; height: 108px; background: #ffb340; border-radius: 2px; cursor: ew-resize; z-index: 6; }
-  .hdl.gaph { background: #7f8ea3; cursor: col-resize; }
-  .hdl.endh { background: #7f8ea3; }
-  .hdl.sel { outline: 2px solid #ff5252; }
-  #tip { position: fixed; display: none; background: #ffd479; color: #222; font-weight: bold; font-size: 13px; padding: 4px 10px; border-radius: 4px; pointer-events: none; z-index: 50; }
-  #hint { padding: 4px 12px; background: #202024; color: #888; font-size: 12px; }
+  :root {
+    color-scheme: dark;
+    --bg: #101114; --panel: #17191e; --panel2: #1d2026; --line: #2d313a;
+    --text: #eef0f4; --muted: #9299a8; --blue: #56a8ff; --orange: #ffb45c;
+    --green: #66d19e; --red: #ff6b6b; --purple: #9d8cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font: 13px/1.45 "Segoe UI", "Microsoft YaHei", sans-serif; }
+  button, input, select { font: inherit; }
+  button { color: var(--text); background: #282c34; border: 1px solid #3a3f49; border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+  button:hover { background: #343944; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary { background: #2f75c9; border-color: #4b94e8; }
+  button.primary:hover { background: #3983d7; }
+  button.ghost { background: transparent; }
+  input, select { color: var(--text); background: #111318; border: 1px solid #363b45; border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  input:focus, select:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+  .app { height: 100%; display: grid; grid-template-rows: 54px minmax(270px, 1fr) 330px 28px; }
+  .topbar { display: flex; align-items: center; gap: 9px; padding: 0 14px; background: #181a1f; border-bottom: 1px solid var(--line); }
+  .brand { font-size: 16px; font-weight: 650; margin-right: 8px; white-space: nowrap; }
+  .brand small { display: block; color: var(--muted); font-size: 10px; font-weight: 400; letter-spacing: .08em; }
+  .source-wrap { display: flex; align-items: center; gap: 7px; min-width: 230px; max-width: 480px; flex: 1; }
+  .source-wrap label { color: var(--muted); white-space: nowrap; }
+  #audioSource { width: 100%; }
+  .top-spacer { flex: 1; }
+  .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+  .toggle input { accent-color: var(--blue); }
+  .workspace { min-height: 0; display: grid; grid-template-columns: 154px minmax(330px, 1fr) 310px; }
+  .pages { background: #15171b; border-right: 1px solid var(--line); overflow-y: auto; padding: 10px; }
+  .pages-head { color: var(--muted); font-size: 11px; letter-spacing: .08em; padding: 2px 3px 8px; }
+  .page-card { width: 100%; display: grid; grid-template-columns: 54px 1fr; gap: 8px; text-align: left; padding: 6px; margin-bottom: 7px; background: transparent; border-color: transparent; }
+  .page-card:hover { background: #20232a; }
+  .page-card.active { background: #252a33; border-color: #4b88c8; }
+  .page-card img { width: 54px; height: 72px; object-fit: cover; border-radius: 4px; background: #0b0c0f; }
+  .page-meta { min-width: 0; align-self: center; }
+  .page-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .page-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
+  .saved-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #505662; margin-right: 4px; }
+  .saved-dot.on { background: var(--green); box-shadow: 0 0 8px rgba(102,209,158,.5); }
+  .viewer { min-width: 0; min-height: 0; display: grid; place-items: center; padding: 14px; overflow: hidden; background: radial-gradient(circle at 50% 30%, #242832, #121318 70%); }
+  .viewer-shell { height: 100%; max-height: 100%; max-width: 100%; aspect-ratio: 9/16; position: relative; background: #08090b; border: 1px solid #383d47; box-shadow: 0 18px 50px rgba(0,0,0,.42); overflow: hidden; }
+  #pageImage { width: 100%; height: 100%; object-fit: contain; display: block; opacity: .75; }
+  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #overlay rect { fill: rgba(86,168,255,.07); stroke: var(--blue); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; }
+  #overlay rect.selected { fill: rgba(255,180,92,.18); stroke: var(--orange); stroke-width: 3; }
+  #previewCrop { position: absolute; inset: 0; display: none; background: #0c0d10 no-repeat; }
+  .viewer-badge { position: absolute; left: 9px; top: 9px; padding: 4px 8px; border-radius: 5px; background: rgba(10,11,14,.76); color: #d6d9df; font-size: 11px; backdrop-filter: blur(8px); }
+  .inspector { background: var(--panel); border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; }
+  .inspector h2 { font-size: 14px; margin: 0 0 3px; }
+  .shot-id { color: var(--muted); font-family: Consolas, monospace; font-size: 11px; margin-bottom: 13px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+  .field input, .field select { width: 100%; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .narration { padding: 10px; min-height: 72px; background: #121419; border: 1px solid var(--line); border-radius: 7px; color: #d8dbe2; }
+  .stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin: 12px 0; }
+  .stat { background: #20232a; border: 1px solid #2f333c; border-radius: 7px; padding: 8px; }
+  .stat span { display: block; color: var(--muted); font-size: 10px; }
+  .stat b { display: block; font-size: 14px; margin-top: 2px; }
+  .legend { border-top: 1px solid var(--line); padding-top: 11px; color: var(--muted); font-size: 11px; }
+  .legend div { margin: 5px 0; }
+  .swatch { display: inline-block; width: 13px; height: 7px; border-radius: 2px; margin-right: 6px; }
+  .timeline { min-width: 0; background: #121419; border-top: 1px solid var(--line); display: grid; grid-template-rows: 36px 25px 119px 114px; }
+  .timeline-toolbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; background: #191b21; border-bottom: 1px solid var(--line); }
+  .timeline-toolbar strong { font-size: 12px; }
+  .timeline-toolbar .summary { color: var(--muted); }
+  .zoom { margin-left: auto; display: flex; gap: 5px; align-items: center; color: var(--muted); }
+  .zoom input { width: 105px; accent-color: var(--blue); }
+  .ruler-wrap, .track-row { display: grid; grid-template-columns: 116px minmax(0,1fr); }
+  .track-label { padding: 8px 10px; color: var(--muted); background: #17191e; border-right: 1px solid var(--line); font-size: 11px; }
+  .track-label b { color: #d9dce2; display: block; font-size: 12px; }
+  .scroll-x { position: relative; min-width: 0; overflow-x: auto; overflow-y: hidden; }
+  .ruler { height: 25px; position: relative; min-width: 100%; background: #15171c; border-bottom: 1px solid var(--line); }
+  .tick { position: absolute; bottom: 0; height: 7px; border-left: 1px solid #454a55; color: #7e8592; font-size: 9px; padding-left: 3px; }
+  .source-track, .sequence-track { position: relative; height: 100%; min-width: 100%; background: #0e1014; }
+  #waveform { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .82; }
+  .source-segment { position: absolute; top: 16px; height: 84px; border: 1px solid rgba(86,168,255,.8); background: rgba(45,101,157,.18); cursor: grab; overflow: hidden; }
+  .source-segment.selected { border-color: var(--orange); background: rgba(255,180,92,.17); z-index: 3; }
+  .source-segment .clip-label { position: absolute; left: 9px; right: 9px; top: 7px; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .source-segment .clip-time { position: absolute; left: 9px; bottom: 7px; color: #b6cbe3; font: 11px Consolas, monospace; pointer-events: none; }
+  .trim-handle { position: absolute; top: 0; bottom: 0; width: 9px; background: var(--blue); cursor: ew-resize; }
+  .trim-handle.left { left: 0; } .trim-handle.right { right: 0; }
+  .source-segment.selected .trim-handle { background: var(--orange); }
+  .sequence-clip { position: absolute; top: 14px; height: 82px; border: 1px solid #4a505d; background: #252932; overflow: visible; }
+  .sequence-clip.selected { border-color: var(--orange); z-index: 5; }
+  .sequence-clip .thumb { position: absolute; inset: 4px auto 4px 4px; width: 46px; border-radius: 3px; background-color: #101116; background-repeat: no-repeat; overflow: hidden; }
+  .sequence-clip .seq-info { position: absolute; left: 56px; right: 8px; top: 7px; pointer-events: none; min-width: 0; }
+  .sequence-clip .seq-info b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sequence-clip .seq-info span { color: var(--muted); font-size: 10px; }
+  .gap-zone { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(45deg, rgba(157,140,255,.08), rgba(157,140,255,.08) 5px, rgba(157,140,255,.2) 5px, rgba(157,140,255,.2) 10px); border-left: 1px dashed var(--purple); }
+  .gap-handle { position: absolute; top: 0; bottom: 0; width: 7px; background: var(--purple); cursor: ew-resize; z-index: 6; }
+  .transition-zone { position: absolute; top: 0; bottom: 0; right: 0; background: linear-gradient(90deg, rgba(255,107,107,.08), rgba(255,107,107,.45)); border-left: 1px solid var(--red); pointer-events: none; }
+  .transition-handle { position: absolute; right: -4px; top: 0; bottom: 0; width: 8px; background: var(--red); cursor: ew-resize; z-index: 7; }
+  .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 8px rgba(255,255,255,.75); z-index: 20; pointer-events: none; display: none; }
+  .statusbar { display: flex; align-items: center; gap: 10px; padding: 0 11px; background: #181a1f; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+  #status { color: #b7d6b7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .statusbar .keys { margin-left: auto; }
+  .empty { color: var(--muted); padding: 18px; }
+  @media (max-width: 960px) {
+    .workspace { grid-template-columns: 116px minmax(300px, 1fr); }
+    .inspector { position: absolute; right: 0; top: 54px; bottom: 358px; width: 290px; z-index: 30; box-shadow: -10px 0 30px rgba(0,0,0,.35); }
+    .viewer { padding-right: 304px; }
+  }
 </style>
 </head>
 <body>
-<div id="side"></div>
-<div id="main">
-  <div id="bar">
-    <button class="primary" onclick="savePage()">保存本页（写回音频）</button>
-    <button onclick="togglePv()" id="pvbtn">▶ 预览本页（图随声动）</button>
-    <button onclick="playSel()">▶ 试听选中格台词</button>
-    <span id="status"></span>
-  </div>
-  <div id="stage">
-    <div id="fig"><img id="img"><div id="pv"></div><svg id="ov"></svg></div>
-    <div id="right">
-      <canvas id="wave" height="100"></canvas>
-      <div id="track"></div>
-      <div id="cursor" style="position:absolute;display:none;width:2px;background:#ff5252;z-index:9"></div>
-    </div>
-  </div>
-  <div id="hint">橙柄=句子切分（两格语音的分界） | 灰柄=格间空隙/结尾停留（斜纹区，可留给转场） | 点击方框或块=选中并试听 | 方向键微调</div>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">画面与配音同步<small>MOTION COMIC · STAGE 02</small></div>
+    <div class="source-wrap"><label for="audioSource">页级配音</label><select id="audioSource"></select></div>
+    <label class="toggle"><input id="snapToggle" type="checkbox" checked> 吸附静音</label>
+    <button class="ghost" id="autoBtn">自动初排</button>
+    <button class="ghost" id="resetBtn">还原本页</button>
+    <button id="previewBtn">▶ 预览本页</button>
+    <button class="primary" id="saveBtn">保存本页</button>
+  </header>
+
+  <main class="workspace">
+    <aside class="pages"><div class="pages-head">漫画页面</div><div id="pageList"></div></aside>
+    <section class="viewer">
+      <div class="viewer-shell" id="viewerShell">
+        <img id="pageImage" alt="漫画页面">
+        <div id="previewCrop"></div>
+        <svg id="overlay"></svg>
+        <div class="viewer-badge" id="viewerBadge">等待载入</div>
+      </div>
+    </section>
+    <aside class="inspector">
+      <h2 id="shotTitle">未选择画面</h2><div class="shot-id" id="shotId">—</div>
+      <div class="field"><label>对应解说</label><div class="narration" id="shotText">请在时间轴或漫画框中选择一个片段。</div></div>
+      <div class="stat-grid">
+        <div class="stat"><span>语音</span><b id="speechStat">—</b></div>
+        <div class="stat"><span>留白</span><b id="gapStat">—</b></div>
+        <div class="stat"><span>画面</span><b id="visualStat">—</b></div>
+      </div>
+      <div class="pair">
+        <div class="field"><label for="inPoint">音频入点</label><input id="inPoint" type="number" min="0" step="0.02"></div>
+        <div class="field"><label for="outPoint">音频出点</label><input id="outPoint" type="number" min="0" step="0.02"></div>
+      </div>
+      <div class="field"><label for="gapAfter"><span>语音后留白</span><span>不会改原音频</span></label><input id="gapAfter" type="number" min="0" max="30" step="0.05"></div>
+      <div class="field"><label for="transitionType">出场转场</label><select id="transitionType"><option value="CUT">硬切</option><option value="CROSSFADE">交叉叠化</option><option value="FADE_BLACK">淡黑</option><option value="FADE_WHITE">淡白</option></select></div>
+      <div class="field"><label for="transitionDuration"><span>转场时长</span><span id="transitionHint">硬切无时长</span></label><input id="transitionDuration" type="number" min="0" max="10" step="0.05"></div>
+      <button id="playClipBtn" style="width:100%">▶ 试听当前语句</button>
+      <div class="legend">
+        <div><i class="swatch" style="background:var(--orange)"></i>拖上轨两侧：调整音频入点 / 出点</div>
+        <div><i class="swatch" style="background:var(--purple)"></i>拖下轨紫柄：插入无声停留</div>
+        <div><i class="swatch" style="background:var(--red)"></i>拖下轨红柄：设置转场长度</div>
+      </div>
+    </aside>
+  </main>
+
+  <section class="timeline">
+    <div class="timeline-toolbar"><strong>页内时间轴</strong><span class="summary" id="timelineSummary">—</span><div class="zoom">缩放 <input id="zoomRange" type="range" min="70" max="220" value="100"></div></div>
+    <div class="ruler-wrap"><div class="track-label"></div><div class="scroll-x" id="rulerScroll"><div class="ruler" id="ruler"></div></div></div>
+    <div class="track-row"><div class="track-label"><b>源音频</b>拖入点 / 出点</div><div class="scroll-x" id="sourceScroll"><div class="source-track" id="sourceTrack"><canvas id="waveform"></canvas><div class="playhead" id="sourcePlayhead"></div></div></div></div>
+    <div class="track-row"><div class="track-label"><b>输出画面</b>留白 / 转场</div><div class="scroll-x" id="sequenceScroll"><div class="sequence-track" id="sequenceTrack"><div class="playhead" id="sequencePlayhead"></div></div></div></div>
+  </section>
+  <footer class="statusbar"><span id="status">正在读取项目…</span><span class="keys">方向键 ±0.02s · Shift + 方向键 ±0.10s</span></footer>
 </div>
-<div id="tip"></div>
+
 <script>
-const S = { pages: [], cur: -1, blocks: [], cuts: [], gaps: [], endPad: 0, block: null, sr: 0, sel: -1, hdl: null, ctx: null, px: 1 };
 const $ = id => document.getElementById(id);
-window.onerror = (m, src, l) => { const s = document.getElementById("status"); if (s) s.textContent = "错误: " + m + " (行" + l + ")"; };
-async function api(p, body) {
-  const o = body ? { method: "POST", headers: {"Content-Type": "application/json"}, body } : {};
-  return (await fetch(p, o)).json();
-}
-function ctx() {
+const esc = value => String(value ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const fmt = value => `${Number(value || 0).toFixed(2)}s`;
+const TRANSITION_NAMES = {CUT:"硬切", CROSSFADE:"交叉叠化", FADE_BLACK:"淡黑", FADE_WHITE:"淡白"};
+const S = {data:null, pageIndex:-1, page:null, source:null, buffer:null, pcm:null, segments:[], selected:0, ctx:null, zoom:1, dragging:null, preview:null, dirty:false};
+
+function setStatus(message, error=false) { $("status").textContent = message; $("status").style.color = error ? "#ff8e8e" : "#b7d6b7"; }
+function audioContext() {
   if (!S.ctx) S.ctx = new (window.AudioContext || window.webkitAudioContext)();
   if (S.ctx.state === "suspended") S.ctx.resume();
   return S.ctx;
 }
-function status(t) { $("status").textContent = t; }
-const n = () => S.blocks.length;
-// 语音段时长（由切分点解出）
-const spk = k => (k === 0 ? S.cuts[0] : k === n() - 1 ? S.blockDur - S.cuts[n() - 2] : S.cuts[k] - S.cuts[k - 1]);
-const gap = k => (k < n() - 1 ? S.gaps[k] : S.endPad);            // 该格之后的留空
-const dispStart = k => { let t = 0; for (let i = 0; i < k; i++) t += spk(i) + gap(i); return t; };
-const dispWidth = k => spk(k) + gap(k);
-const total = () => { let t = 0; for (let k = 0; k < n(); k++) t += dispWidth(k); return t; };
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json();
+  if (!response.ok || data.ok === false) throw new Error(data.error || `请求失败 ${response.status}`);
+  return data;
+}
+function audioUrl(path) { return `/media/audio?path=${encodeURIComponent(path)}`; }
+function imageUrl(page) { return `/media/image?page=${encodeURIComponent(page)}`; }
+function currentSegment() { return S.segments[S.selected]; }
+function sourceDuration() { return S.buffer?.duration || 0; }
+function speechDuration(segment) { return Math.max(0, segment.source_end - segment.source_start); }
+function transitionDuration(segment) { return segment.transition_out === "CUT" ? 0 : Number(segment.transition_duration || 0); }
+function outputStarts() {
+  const starts = []; let time = 0;
+  for (const segment of S.segments) { starts.push(time); time += speechDuration(segment) + Number(segment.gap_after || 0); }
+  return starts;
+}
+function outputDuration() {
+  if (!S.segments.length) return 0;
+  const starts = outputStarts();
+  return Math.max(...S.segments.map((segment,index)=>starts[index]+speechDuration(segment)+Number(segment.gap_after||0)+transitionDuration(segment)));
+}
+function timelineWidth(duration) { return Math.max(document.documentElement.clientWidth - 116, duration * 78 * S.zoom); }
 
 async function init() {
-  const d = await api("/api/data");
-  const byPage = new Map();
-  for (const s of d.shots) {
-    if (!byPage.has(s.page)) byPage.set(s.page, []);
-    byPage.get(s.page).push(s);
-  }
-  S.pages = [...byPage.entries()].map(([page, shots]) => ({ page, shots }));
-  const side = $("side");
-  S.pages.forEach((p, i) => {
-    const im = document.createElement("img");
-    im.src = "/image/" + p.page; im.title = p.page;
-    im.onclick = () => loadPage(i);
-    side.appendChild(im);
-  });
-  loadPage(0);
+  try {
+    S.data = await fetchJson("/api/data");
+    renderPageList();
+    if (S.data.pages.length) await loadPage(0);
+    else setStatus("director.json 中没有可编辑镜头", true);
+  } catch (error) { setStatus(error.message, true); }
 }
 
-async function loadPage(i) {
-  S.cur = i; S.sel = -1; S.hdl = null;
-  const p = S.pages[i];
-  $("img").src = "/image/" + p.page;
-  document.querySelectorAll("#side img").forEach((im, k) => im.classList.toggle("cur", k === i));
-  ctx();
-  const bufs = []; let t = 0;
-  for (const sh of p.shots) {
-    const ab = await (await fetch("/audio?p=" + encodeURIComponent(sh.audio))).arrayBuffer();
-    const buf = await S.ctx.decodeAudioData(ab);
-    bufs.push(buf); t += buf.duration;
-  }
-  S.sr = bufs[0].sampleRate;
-  S.block = new Float32Array(Math.round(t * S.sr));
-  let off = 0;
-  for (const b of bufs) { S.block.set(b.getChannelData(0), off); off += b.length; }
-  S.blockDur = t;
-  S.blocks = p.shots.map((sh, k) => ({ shot: sh, text: sh.text, bbox: sh.bbox }));
-  // 当前切片点 = 各段时长的累加（AI 静音切分的既有结果），空隙默认 0
-  S.cuts = []; let acc = 0;
-  for (let k = 0; k < S.blocks.length - 1; k++) { acc += bufs[k].duration; S.cuts.push(acc); }
-  S.gaps = S.blocks.map(() => 0);
-  S.endPad = 0;
-  await new Promise(r => { const im = $("img"); if (im.complete && im.naturalWidth) r(); else im.onload = r; });
-  draw();
-  status(`${p.page} · ${p.shots.length} 格 · 语音 ${t.toFixed(1)}s`);
+function renderPageList() {
+  $("pageList").innerHTML = S.data.pages.map((page, index) => `
+    <button class="page-card ${index === S.pageIndex ? "active" : ""}" data-page="${index}">
+      <img src="${imageUrl(page.page)}" alt="${esc(page.page)}">
+      <span class="page-meta"><span class="page-name">${esc(page.page)}</span><span class="page-sub"><i class="saved-dot ${page.alignment ? "on" : ""}"></i>${page.shots.length} 个画面</span></span>
+    </button>`).join("");
+  document.querySelectorAll(".page-card").forEach(button => button.onclick = () => loadPage(Number(button.dataset.page)));
 }
 
-function draw() {
-  const W = $("right").clientWidth, H = 100;
-  const cv = $("wave"); cv.width = W; cv.height = H;
-  const g = cv.getContext("2d");
-  g.fillStyle = "#101014"; g.fillRect(0, 0, W, H);
-  const T = Math.max(total(), 1);
-  S.px = W / T;
-  const data = S.block, step = Math.max(1, Math.floor(data.length / W));
-  g.strokeStyle = "#5aa9ff";
-  for (let x = 0; x < W; x++) {
-    let lo = 1, hi = -1;
-    const a = Math.round(x * step), b = Math.min(a + step, data.length);
-    for (let k = a; k < b; k += 4) { const v = data[k]; if (v < lo) lo = v; if (v > hi) hi = v; }
-    if (hi < lo) continue;
-    g.beginPath();
-    g.moveTo(x + 0.5, H / 2 - hi * H / 2 * 0.92); g.lineTo(x + 0.5, H / 2 - lo * H / 2 * 0.92);
-    g.stroke();
-  }
-  const track = $("track"); track.innerHTML = ""; track.style.width = W + "px";
-  const page = S.pages[S.cur].page;
-  S.blocks.forEach((bl, k) => {
-    const x0 = dispStart(k) * S.px, sw = spk(k) * S.px, gw = gap(k) * S.px;
-    const visG = Math.max(gw, k < n() - 1 ? 10 : (S.endPad > 0 ? gw : 0) || 0);
-    const d = document.createElement("div");
-    d.className = "blk" + (k === S.sel ? " sel" : "");
-    d.style.left = x0 + "px"; d.style.width = Math.max(sw, 12) + "px";
-    d.onclick = () => selectBlk(k);
-    // 格子缩略图（contain 裁切，居中，不串格；尺寸取自图片真实分辨率）
-    const bb = bl.bbox, IMG = $("img");
-    const PW = IMG.naturalWidth || 1810, PH = IMG.naturalHeight || 2560;
-    if (bb) {
-      const pw = (bb[2] - bb[0]) * PW, ph = (bb[3] - bb[1]) * PH;
-      const scale = Math.min(52 / pw, 70 / ph);
-      const iw = PW * scale, ih = PH * scale;
-      const th = document.createElement("div");
-      th.className = "thumb";
-      th.innerHTML = `<div style="position:absolute;left:50%;top:50%;width:${iw}px;height:${ih}px;transform:translate(-50%,-50%);overflow:hidden">` +
-        `<img src="/image/${page}" style="position:absolute;width:${iw}px;left:${-bb[0] * iw}px;top:${-bb[1] * ih}px"></div>`;
-      d.appendChild(th);
-    }
-    const info = document.createElement("div");
-    info.className = "info";
-    info.style.left = (bb ? 62 : 6) + "px";
-    info.innerHTML = `<div class="dur">${dispWidth(k).toFixed(1)}s</div><div class="txt">#${k + 1} ${bl.text}</div>`;
-    d.appendChild(info);
-    track.appendChild(d);
-    // 格间空隙区（斜纹）
-    const showGap = k < n() - 1 ? true : S.endPad > 0.02;
-    if (showGap) {
-      const gz = document.createElement("div");
-      gz.className = "gapz";
-      gz.style.left = (x0 + sw) + "px"; gz.style.width = Math.max(visG - 2, 6) + "px";
-      if (gap(k) <= 0.02) gz.style.opacity = 0.3;
-      track.appendChild(gz);
-    }
-  });
-  // 橙柄：句子切分
-  S.cuts.forEach((c, k) => {
-    const x = (dispStart(k) + spk(k)) * S.px;
-    track.appendChild(mkHandle("hdl", x, { type: "cut", k }, S.hdl === `cut${k}`));
-  });
-  // 灰柄：格间空隙
-  for (let k = 0; k < n() - 1; k++) {
-    const x = (dispStart(k) + spk(k) + S.gaps[k] / 2) * S.px;
-    track.appendChild(mkHandle("hdl gaph", x, { type: "gap", k }, S.hdl === `gap${k}`));
-  }
-  // 灰柄：结尾停留
-  if (n() > 0) {
-    const x = (dispStart(n() - 1) + spk(n() - 1) + S.endPad / 2) * S.px;
-    track.appendChild(mkHandle("hdl endh", x, { type: "end", k: n() - 1 }, S.hdl === "end"));
-  }
+function populateSourceSelect() {
+  const options = [];
+  if (S.page.source.kind === "parts") options.push(`<option value="__parts__">自动拼接本页 ${S.page.source.parts.length} 段配音</option>`);
+  if (S.page.source.kind === "missing") options.push(`<option value="">未找到配音文件</option>`);
+  for (const path of S.data.audio_files) options.push(`<option value="${esc(path)}">${esc(path)}</option>`);
+  $("audioSource").innerHTML = options.join("");
+  $("audioSource").value = S.page.source.kind === "file" ? S.page.source.path : S.page.source.kind === "parts" ? "__parts__" : "";
+}
+
+async function loadPage(index) {
+  if (S.dirty && index !== S.pageIndex && !window.confirm("本页还有未保存的时间调整，确定切换页面吗？")) return;
+  stopPreview();
+  S.pageIndex = index; S.page = S.data.pages[index]; S.selected = 0; S.dirty = false;
+  populateSourceSelect(); renderPageList();
+  $("pageImage").src = imageUrl(S.page.page);
+  await new Promise(resolve => { const image=$("pageImage"); if (image.complete && image.naturalWidth) resolve(); else { image.onload=resolve; image.onerror=resolve; } });
   drawOverlay();
+  await loadAudioSource(S.page.source);
 }
 
-function mkHandle(cls, x, ref, selected) {
-  const h = document.createElement("div");
-  h.className = cls + (selected ? " sel" : "");
-  h.style.left = (x - 5) + "px";
-  h.onmousedown = e => { e.preventDefault(); e.stopPropagation(); S.hdl = ref.type + ref.k; draw(); startDrag(e, ref); };
-  return h;
+async function decodePath(path) {
+  const response = await fetch(audioUrl(path));
+  if (!response.ok) throw new Error(`无法读取配音：${path}`);
+  return audioContext().decodeAudioData(await response.arrayBuffer());
+}
+
+async function loadAudioSource(source) {
+  setStatus(`正在载入 ${S.page.page} 的配音…`);
+  try {
+    let buffers = [];
+    if (source.kind === "file") buffers = [await decodePath(source.path)];
+    else if (source.kind === "parts") buffers = await Promise.all(source.parts.map(decodePath));
+    else throw new Error("本页没有配音。请把页级音频放进工作目录的 audio 文件夹后重新打开。")
+    const ctx = audioContext(), channels = 1, totalFrames = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
+    S.buffer = ctx.createBuffer(channels, totalFrames, ctx.sampleRate);
+    S.pcm = S.buffer.getChannelData(0); let offset = 0;
+    for (const buffer of buffers) { S.pcm.set(buffer.getChannelData(0), offset); offset += buffer.length; }
+    S.source = structuredClone(source);
+    restoreOrAutoAlign(); renderAll();
+    setStatus(`${S.page.page} · 配音 ${fmt(S.buffer.duration)} · ${S.segments.length} 个画面片段`);
+  } catch (error) {
+    S.buffer = null; S.pcm = null; S.segments = [];
+    renderAll(); setStatus(error.message, true);
+  }
+}
+
+function restoreOrAutoAlign() {
+  const saved = S.page.alignment?.segments;
+  if (saved?.length === S.page.shots.length && saved.every((segment, i) => segment.shot_id === S.page.shots[i].id)) {
+    S.segments = saved.map(segment => ({...segment}));
+    sanitizeSegments();
+  } else autoAlign(false);
+}
+
+function silenceSnap(target, radius=0.85) {
+  if (!S.pcm || !$("snapToggle").checked) return target;
+  const sr=S.buffer.sampleRate, start=Math.max(0, Math.floor((target-radius)*sr)), end=Math.min(S.pcm.length, Math.ceil((target+radius)*sr));
+  const window=Math.max(1, Math.floor(sr*.025)), stride=Math.max(1, Math.floor(sr*.01));
+  let best=target, bestScore=Infinity;
+  for (let i=start; i<end-window; i+=stride) {
+    let score=0; for (let j=0; j<window; j+=8) score += Math.abs(S.pcm[i+j]);
+    score /= Math.max(1, window/8);
+    const time=i/sr, distance=Math.abs(time-target)/radius;
+    score *= 1 + distance*.18;
+    if (score < bestScore) { bestScore=score; best=time; }
+  }
+  return best;
+}
+
+function autoAlign(markDirty=true) {
+  if (!S.buffer || !S.page) return;
+  const weights=S.page.shots.map(shot => Math.max((shot.text || "").replace(/[\s，。！？；：、…—,.!?;:]/g, "").length, 4));
+  const sum=weights.reduce((a,b)=>a+b,0), boundaries=[0]; let acc=0;
+  for (let i=0; i<weights.length-1; i++) { acc += weights[i]; boundaries.push(silenceSnap(S.buffer.duration*acc/sum)); }
+  boundaries.push(S.buffer.duration);
+  for (let i=1; i<boundaries.length-1; i++) boundaries[i]=clamp(boundaries[i], boundaries[i-1]+.12, boundaries[i+1]-.12);
+  S.segments=S.page.shots.map((shot,i)=>({shot_id:shot.id, source_start:+boundaries[i].toFixed(3), source_end:+boundaries[i+1].toFixed(3), gap_after:Number(shot.gap_after||0), transition_out:shot.transition_out||"CUT", transition_duration:shot.transition_out==="CUT"?0:Number(shot.transition_duration||.6)}));
+  S.selected=0; S.dirty=markDirty; renderAll();
+  if (markDirty) setStatus("已按文字长度和静音位置重新初排，保存前可继续拖动微调");
+}
+
+function sanitizeSegments() {
+  const duration=sourceDuration(); let previous=0;
+  S.segments.forEach((segment,index)=>{
+    segment.source_start=clamp(Number(segment.source_start||0), previous, Math.max(previous,duration-.08));
+    segment.source_end=clamp(Number(segment.source_end||segment.source_start+.08), segment.source_start+.08, duration);
+    segment.gap_after=clamp(Number(segment.gap_after||0),0,30);
+    segment.transition_out=TRANSITION_NAMES[segment.transition_out]?segment.transition_out:"CUT";
+    segment.transition_duration=segment.transition_out==="CUT"?0:clamp(Number(segment.transition_duration||.6),.05,10);
+    previous=segment.source_end;
+    if (index===S.segments.length-1 && S.pageIndex===S.data.pages.length-1) { segment.transition_out="CUT"; segment.transition_duration=0; }
+  });
+}
+
+function renderAll() { sanitizeSegments(); renderRulerAndTracks(); drawOverlay(); updateInspector(); renderSummary(); }
+function renderSummary() {
+  $("timelineSummary").textContent=S.buffer?`源音频 ${fmt(sourceDuration())} · 输出 ${fmt(outputDuration())} · ${S.segments.length} 段`:"没有可用音频";
+  $("saveBtn").disabled=!S.buffer; $("previewBtn").disabled=!S.buffer; $("autoBtn").disabled=!S.buffer;
+}
+
+function drawRuler(width, duration) {
+  const ruler=$("ruler"); ruler.style.width=`${width}px`; ruler.innerHTML="";
+  const major=duration>40?5:duration>18?2:1;
+  for(let time=0; time<=duration+.001; time+=major){const tick=document.createElement("div");tick.className="tick";tick.style.left=`${time/duration*width}px`;tick.textContent=`${time.toFixed(0)}s`;ruler.appendChild(tick);}
+}
+
+function drawWaveform(width, duration) {
+  const canvas=$("waveform"), height=119, ratio=devicePixelRatio||1;
+  canvas.width=Math.floor(width*ratio); canvas.height=Math.floor(height*ratio); canvas.style.width=`${width}px`; canvas.style.height=`${height}px`;
+  const g=canvas.getContext("2d"); g.scale(ratio,ratio); g.clearRect(0,0,width,height); if(!S.pcm)return;
+  const dataWidth=Math.max(1,Math.floor(sourceDuration()/duration*width)),step=Math.max(1,Math.floor(S.pcm.length/dataWidth)); g.strokeStyle="#4b9ce8"; g.lineWidth=1; g.beginPath();
+  for(let x=0;x<dataWidth;x++){let lo=1,hi=-1;const a=x*step,b=Math.min(a+step,S.pcm.length);for(let i=a;i<b;i+=Math.max(1,Math.floor(step/12))){const v=S.pcm[i];lo=Math.min(lo,v);hi=Math.max(hi,v);}g.moveTo(x+.5,height/2-hi*height*.39);g.lineTo(x+.5,height/2-lo*height*.39);}g.stroke();
+}
+
+function renderRulerAndTracks() {
+  const sourceDur=Math.max(sourceDuration(),.1), outputDur=Math.max(outputDuration(),.1), duration=Math.max(sourceDur,outputDur), width=timelineWidth(duration);
+  drawRuler(width,duration);
+  const source=$("sourceTrack"), sequence=$("sequenceTrack"); source.style.width=sequence.style.width=`${width}px`; drawWaveform(width,duration);
+  source.querySelectorAll(".source-segment").forEach(el=>el.remove()); sequence.querySelectorAll(".sequence-clip").forEach(el=>el.remove());
+  const pageUrl=imageUrl(S.page?.page||"");
+  S.segments.forEach((segment,index)=>{
+    const left=segment.source_start/duration*width, clipWidth=Math.max(14,speechDuration(segment)/duration*width);
+    const block=document.createElement("div");block.className=`source-segment ${index===S.selected?"selected":""}`;block.dataset.index=index;block.style.left=`${left}px`;block.style.width=`${clipWidth}px`;
+    block.innerHTML=`<div class="trim-handle left" data-edge="start"></div><div class="clip-label">${index+1}. ${esc(S.page.shots[index].text||"无解说")}</div><div class="clip-time">${fmt(segment.source_start)} → ${fmt(segment.source_end)}</div><div class="trim-handle right" data-edge="end"></div>`;
+    block.onclick=event=>{event.stopPropagation();selectSegment(index);}; block.onpointerdown=event=>beginSourceDrag(event,index,event.target.dataset.edge||"move",duration,width); source.appendChild(block);
+  });
+  const starts=outputStarts();
+  S.segments.forEach((segment,index)=>{
+    const speech=speechDuration(segment), gap=Number(segment.gap_after||0), transition=transitionDuration(segment), visual=speech+gap+transition;
+    const left=starts[index]/duration*width, clipWidth=Math.max(18,visual/duration*width);
+    const clip=document.createElement("div");clip.className=`sequence-clip ${index===S.selected?"selected":""}`;clip.style.left=`${left}px`;clip.style.width=`${clipWidth}px`;clip.dataset.index=index;
+    const thumb=thumbnailStyle(S.page.shots[index].bbox,pageUrl);
+    clip.innerHTML=`<div class="thumb" style="${thumb}"></div><div class="seq-info"><b>${index+1}. ${esc(S.page.shots[index].text||"画面片段")}</b><span>${fmt(visual)} · ${TRANSITION_NAMES[segment.transition_out]}</span></div>${gap>0?`<div class="gap-zone" style="left:${speech/visual*100}%;width:${gap/visual*100}%"></div>`:""}<div class="gap-handle" style="left:${(speech+gap)/visual*100}%" title="拖动调整留白"></div>${transition>0?`<div class="transition-zone" style="width:${transition/visual*100}%"></div><div class="transition-handle" title="拖动调整转场"></div>`:""}`;
+    clip.onclick=()=>selectSegment(index);clip.querySelector(".gap-handle").onpointerdown=event=>beginSequenceDrag(event,index,"gap",duration,width,starts[index]);const th=clip.querySelector(".transition-handle");if(th)th.onpointerdown=event=>beginSequenceDrag(event,index,"transition",duration,width,starts[index]);sequence.appendChild(clip);
+  });
+}
+
+function thumbnailStyle(bbox,url) {
+  if(!bbox)return `background-image:url('${url}');background-size:cover;background-position:center`;
+  const [x0,y0,x1,y1]=bbox,w=Math.max(x1-x0,.01),h=Math.max(y1-y0,.01),scale=Math.max(1/w,1/h);
+  const px=w>=.999?50:clamp(x0/(1-w)*100,0,100),py=h>=.999?50:clamp(y0/(1-h)*100,0,100);
+  return `background-image:url('${url}');background-size:${scale*100}% ${scale*100}%;background-position:${px}% ${py}%`;
+}
+
+function beginSourceDrag(event,index,mode,duration,width) {
+  event.preventDefault();event.stopPropagation();selectSegment(index);const original={...S.segments[index]},startX=event.clientX,previous=index?S.segments[index-1].source_end:0,next=index<S.segments.length-1?S.segments[index+1].source_start:sourceDuration();
+  S.dragging={type:"source",index,mode};event.target.setPointerCapture?.(event.pointerId);
+  const move=moveEvent=>{let delta=(moveEvent.clientX-startX)/width*duration;if($("snapToggle").checked&&mode!=="move")delta=silenceSnap((mode==="start"?original.source_start:original.source_end)+delta,.35)-(mode==="start"?original.source_start:original.source_end);const seg=S.segments[index],len=original.source_end-original.source_start;if(mode==="start")seg.source_start=clamp(original.source_start+delta,previous,seg.source_end-.08);else if(mode==="end")seg.source_end=clamp(original.source_end+delta,seg.source_start+.08,next);else{const start=clamp(original.source_start+delta,previous,next-len);seg.source_start=start;seg.source_end=start+len;}S.dirty=true;renderAll();};
+  const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);S.dragging=null;};window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);
+}
+
+function beginSequenceDrag(event,index,mode,duration,width,start) {
+  event.preventDefault();event.stopPropagation();selectSegment(index);const original={...S.segments[index]},speech=speechDuration(original);
+  const move=moveEvent=>{const rect=$("sequenceTrack").getBoundingClientRect(),time=(moveEvent.clientX-rect.left)/width*duration,seg=S.segments[index];if(mode==="gap")seg.gap_after=clamp(time-start-speech,0,30);else{if(seg.transition_out==="CUT")seg.transition_out="CROSSFADE";seg.transition_duration=clamp(time-(start+speech+Number(seg.gap_after||0)),.05,10);}S.dirty=true;renderAll();};
+  const up=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);};window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);
 }
 
 function drawOverlay() {
-  const fig = $("fig"), ov = $("ov");
-  const r = fig.getBoundingClientRect();
-  ov.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
-  ov.innerHTML = "";
-  const img = $("img");
-  S.blocks.forEach((bl, k) => {
-    if (!bl.bbox) return;
-    const [x0, y0, x1, y1] = bl.bbox;
-    const rc = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rc.setAttribute("x", x0 * img.clientWidth); rc.setAttribute("y", y0 * img.clientHeight);
-    rc.setAttribute("width", (x1 - x0) * img.clientWidth); rc.setAttribute("height", (y1 - y0) * img.clientHeight);
-    if (k === S.sel) rc.classList.add("on");
-    rc.onclick = () => selectBlk(k);
-    ov.appendChild(rc);
-  });
+  const image=$("pageImage"), overlay=$("overlay");if(!S.page||!image.naturalWidth)return;
+  const shell=$("viewerShell").getBoundingClientRect(),scale=Math.min(shell.width/image.naturalWidth,shell.height/image.naturalHeight),dw=image.naturalWidth*scale,dh=image.naturalHeight*scale,ox=(shell.width-dw)/2,oy=(shell.height-dh)/2;
+  overlay.setAttribute("viewBox",`0 0 ${shell.width} ${shell.height}`);overlay.innerHTML="";
+  S.page.shots.forEach((shot,index)=>{if(!shot.bbox)return;const [x0,y0,x1,y1]=shot.bbox,rect=document.createElementNS("http://www.w3.org/2000/svg","rect");rect.setAttribute("x",ox+x0*dw);rect.setAttribute("y",oy+y0*dh);rect.setAttribute("width",(x1-x0)*dw);rect.setAttribute("height",(y1-y0)*dh);if(index===S.selected)rect.classList.add("selected");rect.onclick=()=>selectSegment(index);overlay.appendChild(rect);});
+  $("viewerBadge").textContent=`${S.page.page} · ${S.selected+1}/${S.page.shots.length}`;
 }
 
-function selectBlk(k) {
-  S.sel = k; draw();
-  play(k);
-  status(`格 ${k + 1}（${S.blocks[k].shot.id}）· 持续 ${dispWidth(k).toFixed(2)}s · ${S.blocks[k].text.slice(0, 16)}…`);
+function selectSegment(index) { S.selected=clamp(index,0,S.segments.length-1);renderAll(); }
+function updateInspector() {
+  const segment=currentSegment(),shot=S.page?.shots[S.selected];const disabled=!segment;
+  for(const id of ["inPoint","outPoint","gapAfter","transitionType","transitionDuration","playClipBtn"])$(id).disabled=disabled;
+  if(!segment||!shot){$("shotTitle").textContent="未选择画面";return;}
+  $("shotTitle").textContent=`画面 ${S.selected+1}`;$("shotId").textContent=shot.id;$("shotText").textContent=shot.text||"（此片段没有解说文字）";
+  $("inPoint").value=segment.source_start.toFixed(2);$("outPoint").value=segment.source_end.toFixed(2);$("gapAfter").value=Number(segment.gap_after).toFixed(2);$("transitionType").value=segment.transition_out;$("transitionDuration").value=transitionDuration(segment).toFixed(2);$("transitionDuration").disabled=segment.transition_out==="CUT";$("transitionHint").textContent=segment.transition_out==="CUT"?"硬切无时长":"与下一画面重叠";
+  $("speechStat").textContent=fmt(speechDuration(segment));$("gapStat").textContent=fmt(segment.gap_after);$("visualStat").textContent=fmt(speechDuration(segment)+Number(segment.gap_after)+transitionDuration(segment));
 }
 
-function play(k) {
-  const c = ctx();
-  const src = c.createBufferSource();
-  src.buffer = pageBuffer();
-  src.connect(c.destination);
-  src.start(0, dispStart(k), spk(k));  // 只播台词，不含留空
-}
-function playSel() { if (S.sel >= 0) play(S.sel); }
-function pageBuffer() {
-  const c = ctx();
-  const buf = c.createBuffer(1, S.block.length, S.sr);
-  buf.copyToChannel(S.block, 0);
-  return buf;
+function updateSegmentField() {
+  const segment=currentSegment();if(!segment)return;const index=S.selected,previous=index?S.segments[index-1].source_end:0,next=index<S.segments.length-1?S.segments[index+1].source_start:sourceDuration();
+  segment.source_start=clamp(Number($("inPoint").value),previous,segment.source_end-.08);segment.source_end=clamp(Number($("outPoint").value),segment.source_start+.08,next);segment.gap_after=clamp(Number($("gapAfter").value),0,30);segment.transition_out=$("transitionType").value;segment.transition_duration=segment.transition_out==="CUT"?0:clamp(Number($("transitionDuration").value)||.6,.05,10);S.dirty=true;renderAll();
 }
 
-// —— 页内预览：按显示时间轴播放，图片随留空与台词切换 ——
-const PV = { on: false, t0: 0, raf: 0, srcs: [], lastK: -1 };
-function togglePv() { PV.on ? pvStop() : pvStart(); }
-function pvStart() {
-  const c = ctx();
-  PV.srcs.forEach(s => { try { s.stop(); } catch (e) {} }); PV.srcs = [];
-  PV.t0 = c.currentTime + 0.2;
-  for (let k = 0; k < n(); k++) {
-    const src = c.createBufferSource();
-    src.buffer = pageBuffer(); src.connect(c.destination);
-    src.start(PV.t0 + dispStart(k), dispStart(k), spk(k));
-    PV.srcs.push(src);
-  }
-  PV.on = true; PV.lastK = -1;
-  $("pvbtn").textContent = "■ 停止预览";
-  $("pv").style.display = "block"; $("cursor").style.display = "block";
-  $("cursor").style.height = ($("wave").clientHeight + 6 + $("track").clientHeight) + "px";
-  pvTick();
-}
-function pvStop() {
-  PV.srcs.forEach(s => { try { s.stop(); } catch (e) {} });
-  PV.on = false; cancelAnimationFrame(PV.raf);
-  $("pvbtn").textContent = "▶ 预览本页（图随声动）";
-  $("pv").style.display = "none"; $("cursor").style.display = "none";
-}
-function pvTick() {
-  if (!PV.on) return;
-  const tt = S.ctx.currentTime - PV.t0;
-  if (tt > total()) { pvStop(); return; }
-  $("cursor").style.left = (tt * S.px) + "px";
-  let k = 0;
-  for (let j = 0; j < n(); j++) if (tt >= dispStart(j)) k = j;
-  if (k !== PV.lastK) {
-    PV.lastK = k;
-    const bl = S.blocks[k], b = bl.bbox;
-    const IMG = $("img");
-    const PW = IMG.naturalWidth || 1810, PH = IMG.naturalHeight || 2560;
-    const fig = $("fig"), fw = fig.clientWidth, fh = fig.clientHeight;
-    if (b) {
-      const pw = (b[2] - b[0]) * PW, ph = (b[3] - b[1]) * PH;
-      const sc = Math.max(fw / pw, fh / ph);
-      const cx = (b[0] + b[2]) / 2 * PW * sc, cy = (b[1] + b[3]) / 2 * PH * sc;
-      const pv = $("pv");
-      pv.style.backgroundImage = `url(/image/${S.pages[S.cur].page})`;
-      pv.style.backgroundSize = `${PW * sc}px auto`;
-      pv.style.backgroundPosition = `${fw / 2 - cx}px ${fh / 2 - cy}px`;
-    }
-    status(`预览中 · 格 ${k + 1} · 持续 ${dispWidth(k).toFixed(2)}s`);
-  }
-  PV.raf = requestAnimationFrame(pvTick);
+function makeSource(buffer,start,duration,when=0) { const source=audioContext().createBufferSource();source.buffer=buffer;source.connect(S.ctx.destination);source.start(when,start,duration);return source; }
+function playCurrent() { const segment=currentSegment();if(!segment||!S.buffer)return;makeSource(S.buffer,segment.source_start,speechDuration(segment));setStatus(`试听画面 ${S.selected+1} · ${fmt(speechDuration(segment))}`); }
+
+function previewFrame(index) {
+  const bbox=S.page.shots[index]?.bbox,crop=$("previewCrop"),shell=$("viewerShell"),w=shell.clientWidth,h=shell.clientHeight,image=$("pageImage");if(!bbox)return;
+  const [x0,y0,x1,y1]=bbox,pw=(x1-x0)*image.naturalWidth,ph=(y1-y0)*image.naturalHeight,scale=Math.min(w/pw,h/ph),iw=image.naturalWidth*scale,ih=image.naturalHeight*scale,cx=(x0+x1)/2*iw,cy=(y0+y1)/2*ih;
+  crop.style.backgroundImage=`url('${imageUrl(S.page.page)}')`;crop.style.backgroundSize=`${iw}px ${ih}px`;crop.style.backgroundPosition=`${w/2-cx}px ${h/2-cy}px`;crop.style.display="block";$("overlay").style.display="none";
 }
 
-let dragRef = null;
-function startDrag(e, ref) {
-  dragRef = ref;
-  const tip = $("tip");
-  const move = ev => {
-    const W = $("right").clientWidth;
-    const T = Math.max(total(), 1);
-    let v = Math.max(0, Math.min(ev.clientX - $("right").getBoundingClientRect().left, W)) / W * T;
-    if (ref.type === "cut") {
-      const k = ref.k;
-      const lo = k > 0 ? S.cuts[k - 1] + 0.3 : 0.3;
-      const hi = k < n() - 2 ? S.cuts[k + 1] - 0.3 : S.blockDur - 0.3;
-      S.cuts[k] = Math.max(lo, Math.min(hi, v));
-    } else if (ref.type === "gap") {
-      const k = ref.k;
-      S.gaps[k] = Math.max(0, Math.min(6, v - (dispStart(k) + spk(k))));
-    } else {
-      S.endPad = Math.max(0, Math.min(6, v - (dispStart(ref.k) + spk(ref.k))));
-    }
-    const k = ref.k;
-    tip.style.display = "block";
-    tip.style.left = (ev.clientX + 14) + "px";
-    tip.style.top = (ev.clientY - 10) + "px";
-    tip.textContent = `该图片持续 ${dispWidth(k).toFixed(2)}s`;
-    draw();
-  };
-  const up = () => {
-    tip.style.display = "none";
-    document.removeEventListener("mousemove", move);
-    document.removeEventListener("mouseup", up);
-  };
-  document.addEventListener("mousemove", move);
-  document.addEventListener("mouseup", up);
+function startPreview() {
+  if(S.preview){stopPreview();return;}const ctx=audioContext(),starts=outputStarts(),at=ctx.currentTime+.12,sources=[];
+  S.segments.forEach((segment,index)=>sources.push(makeSource(S.buffer,segment.source_start,speechDuration(segment),at+starts[index])));
+  S.preview={at,starts,sources,raf:0,last:-1};$("previewBtn").textContent="■ 停止预览";$("sequencePlayhead").style.display="block";
+  const tick=()=>{if(!S.preview)return;const time=ctx.currentTime-S.preview.at;if(time>outputDuration()){stopPreview();return;}let index=0;for(let i=0;i<starts.length;i++)if(time>=starts[i])index=i;if(index!==S.preview.last){S.preview.last=index;S.selected=index;previewFrame(index);updateInspector();drawOverlay();}const width=parseFloat($("sequenceTrack").style.width)||1,duration=Math.max(sourceDuration(),outputDuration(),.1);$("sequencePlayhead").style.left=`${time/duration*width}px`;S.preview.raf=requestAnimationFrame(tick);};tick();
 }
-document.addEventListener("keydown", e => {
-  if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
-  if (!S.hdl) return;
-  const step = e.shiftKey ? 0.1 : 0.02;
-  const t = S.hdl.startsWith("cut") ? "cut" : S.hdl.startsWith("gap") ? "gap" : "end";
-  const k = +S.hdl.replace(/^(cut|gap|end)/, "") || (t === "end" ? n() - 1 : 0);
-  if (t === "cut") {
-    const lo = k > 0 ? S.cuts[k - 1] + 0.3 : 0.3;
-    const hi = k < n() - 2 ? S.cuts[k + 1] - 0.3 : S.blockDur - 0.3;
-    if (e.key === "ArrowLeft") S.cuts[k] = Math.max(lo, S.cuts[k] - step);
-    if (e.key === "ArrowRight") S.cuts[k] = Math.min(hi, S.cuts[k] + step);
-  } else if (t === "gap") {
-    if (e.key === "ArrowLeft") S.gaps[k] = Math.max(0, S.gaps[k] - step);
-    if (e.key === "ArrowRight") S.gaps[k] = Math.min(6, S.gaps[k] + step);
-  } else {
-    if (e.key === "ArrowLeft") S.endPad = Math.max(0, S.endPad - step);
-    if (e.key === "ArrowRight") S.endPad = Math.min(6, S.endPad + step);
-  }
-  e.preventDefault(); draw();
-});
+function stopPreview() { if(!S.preview)return;S.preview.sources.forEach(source=>{try{source.stop();}catch{}});cancelAnimationFrame(S.preview.raf);S.preview=null;$("previewBtn").textContent="▶ 预览本页";$("previewCrop").style.display="none";$("overlay").style.display="block";$("sequencePlayhead").style.display="none"; }
 
-function bufToWav(f32, sr) {
-  const m = f32.length;
-  const buf = new ArrayBuffer(44 + m * 2);
-  const v = new DataView(buf);
-  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0, "RIFF"); v.setUint32(4, 36 + m * 2, true); ws(8, "WAVEfmt ");
-  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true);
-  v.setUint16(34, 16, true); ws(36, "data"); v.setUint32(40, m * 2, true);
-  for (let i = 0; i < m; i++) {
-    const s = Math.max(-1, Math.min(1, f32[i]));
-    v.setInt16(44 + i * 2, s < 0 ? s * 32768 : s * 32767, true);
-  }
-  return buf;
-}
 async function savePage() {
-  const p = S.pages[S.cur];
-  const cAll = [0, ...S.cuts, S.blockDur];
-  for (let k = 0; k < n(); k++) {
-    const bl = S.blocks[k];
-    const a = Math.round(cAll[k] * S.sr), b = Math.round(cAll[k + 1] * S.sr);
-    const gN = Math.round(gap(k) * S.sr);
-    const pcm = new Float32Array((b - a) + gN);
-    pcm.set(S.block.slice(a, b), 0);
-    const wav = bufToWav(pcm, S.sr);
-    let b64 = ""; const bytes = new Uint8Array(wav);
-    for (let i = 0; i < bytes.length; i += 0x8000)
-      b64 += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-    const r = await api("/api/save_audio", JSON.stringify({
-      audio: bl.shot.audio, wav_b64: btoa(b64), pad_zero: true
-    }));
-    if (!r.ok) { status("保存失败: " + bl.shot.id); return; }
-    status(`保存 ${k + 1}/${n()}`);
-  }
-  status(`✔ ${p.page} 已写回（含空隙与停留）——全部页面完成后运行 compile+render 重新出片`);
+  if(!S.buffer)return;sanitizeSegments();$("saveBtn").disabled=true;setStatus("正在保存对齐表并更新 director.json…");
+  try { const result=await fetchJson("/api/alignment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({page:S.page.page,source:S.source,audio_duration:S.buffer.duration,segments:S.segments})});S.page.alignment={audio:result.audio,audio_duration:S.buffer.duration,segments:S.segments.map(segment=>({...segment}))};S.page.source={kind:"file",path:result.audio};S.source={...S.page.source};S.dirty=false;renderPageList();populateSourceSelect();setStatus(`✔ ${S.page.page} 已保存：${result.segments} 个画面映射，原始配音未改动`); }
+  catch(error){setStatus(`保存失败：${error.message}`,true);}finally{$("saveBtn").disabled=false;}
 }
-window.addEventListener("resize", () => { if (S.cur >= 0) draw(); });
+
+function syncScroll(origin) { const value=origin.scrollLeft;for(const element of [$("rulerScroll"),$("sourceScroll"),$("sequenceScroll")])if(element!==origin)element.scrollLeft=value; }
+for(const id of ["rulerScroll","sourceScroll","sequenceScroll"])$(id).addEventListener("scroll",event=>syncScroll(event.currentTarget),{passive:true});
+for(const id of ["inPoint","outPoint","gapAfter","transitionType","transitionDuration"])$(id).addEventListener("change",updateSegmentField);
+$("audioSource").onchange=async()=>{const value=$("audioSource").value;if(!value)return;const source=value==="__parts__"?S.page.source:{kind:"file",path:value};S.page.source=source;await loadAudioSource(source);S.dirty=true;};
+$("autoBtn").onclick=()=>autoAlign(true);$("resetBtn").onclick=async()=>{if(S.page.alignment?.audio){S.page.source={kind:"file",path:S.page.alignment.audio};populateSourceSelect();await loadAudioSource(S.page.source);}else{restoreOrAutoAlign();renderAll();}S.dirty=false;setStatus("已还原为本页上次保存的对齐结果");};$("saveBtn").onclick=savePage;$("previewBtn").onclick=startPreview;$("playClipBtn").onclick=playCurrent;
+$("zoomRange").oninput=()=>{S.zoom=Number($("zoomRange").value)/100;renderRulerAndTracks();};
+window.addEventListener("resize",()=>{if(S.page)renderAll();});
+window.addEventListener("beforeunload",event=>{if(S.dirty){event.preventDefault();event.returnValue="";}});
+document.addEventListener("keydown",event=>{if(["INPUT","SELECT"].includes(event.target.tagName)||!currentSegment())return;if(event.key===" "){event.preventDefault();startPreview();return;}if(!["ArrowLeft","ArrowRight"].includes(event.key))return;const delta=(event.key==="ArrowLeft"?-1:1)*(event.shiftKey?.1:.02),segment=currentSegment(),previous=S.selected?S.segments[S.selected-1].source_end:0,next=S.selected<S.segments.length-1?S.segments[S.selected+1].source_start:sourceDuration();segment.source_end=clamp(segment.source_end+delta,segment.source_start+.08,next);if(segment.source_end<previous)segment.source_end=previous+.08;S.dirty=true;event.preventDefault();renderAll();});
 init();
 </script>
 </body>

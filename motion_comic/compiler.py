@@ -100,24 +100,36 @@ class CameraSolver:
         }[direction]
 
 
-def overlap_sec(transition: str, crossfade_sec: float) -> float:
-    return 0.0 if transition == "CUT" else crossfade_sec
+def overlap_sec(transition: str, crossfade_sec: float, transition_sec: float | None = None) -> float:
+    """Return the visual overlap for a transition.
+
+    ``transition_sec`` is a per-shot override written by the timeline editor;
+    old director files continue to use the project-wide ``crossfade_sec``.
+    """
+    if transition == "CUT":
+        return 0.0
+    return float(crossfade_sec if transition_sec is None else transition_sec)
 
 
 def resolve_duration(shot: dict, root: str) -> tuple[float, float]:
     """返回 (镜头时长, 语音实测时长或0)。优先级：fixed > voice+pad，最后不低于 min_duration。"""
-    if shot.get("fixed_duration"):
-        return float(shot["fixed_duration"]), 0.0
     narr = shot.get("narration") or {}
     wav = narr.get("audio")
     dur = 0.0
     if wav:
         p = os.path.join(root, wav)
         if os.path.exists(p):
-            dur = audio_duration(p)
-            pad_in = narr.get("pad_in", PAD_IN_DEFAULT)
-            pad_out = narr.get("pad_out", PAD_OUT_DEFAULT)
-            return max(dur + pad_in + pad_out, shot.get("min_duration", MIN_DURATION_DEFAULT)), dur
+            full_dur = audio_duration(p)
+            source_start = max(float(narr.get("source_start", 0.0)), 0.0)
+            requested = narr.get("source_duration")
+            dur = max(0.0, min(float(requested) if requested is not None else full_dur - source_start,
+                               full_dur - source_start))
+    if shot.get("fixed_duration"):
+        return float(shot["fixed_duration"]), dur
+    if dur > 0:
+        pad_in = narr.get("pad_in", PAD_IN_DEFAULT)
+        pad_out = narr.get("pad_out", PAD_OUT_DEFAULT)
+        return max(dur + pad_in + pad_out, shot.get("min_duration", MIN_DURATION_DEFAULT)), dur
     return max(dur, shot.get("min_duration", MIN_DURATION_DEFAULT)), dur
 
 
@@ -169,7 +181,8 @@ def compile_script(director: dict, root: str = ".") -> dict:
         page_path = os.path.join(root, sh["page"])
         if not os.path.exists(page_path):
             raise FileNotFoundError(f"shot[{idx}] 页面不存在: {page_path}")
-        W, H = Image.open(page_path).size
+        with Image.open(page_path) as page_image:
+            W, H = page_image.size
         solver = CameraSolver(W, H, aspect, min_frac, margin)
 
         motion = canonical_motion(sh.get("motion", "HOLD"))
@@ -214,7 +227,8 @@ def compile_script(director: dict, root: str = ".") -> dict:
         if motion in ("SLOW_PUSH", "SLOW_PULL"):
             settle_at = round(min(SETTLE_MAX_SEC, SETTLE_MAX_FRAC * duration) / duration, 3)
         transition = sh.get("transition_out", "CUT") if idx < len(director["shots"]) - 1 else "CUT"
-        if duration <= overlap_sec(transition, xf) + 0.2:
+        transition_duration = overlap_sec(transition, xf, sh.get("transition_sec"))
+        if duration <= transition_duration + 0.2:
             raise ValueError(f"shot[{idx}] 时长 {duration:.2f}s 不足以容纳转场，检查音频/时长设置")
 
         narr_out = None
@@ -226,15 +240,19 @@ def compile_script(director: dict, root: str = ".") -> dict:
                 "audio": narr.get("audio"),
                 "speech_start": round(g + pad_in, 3),
                 "speech_dur": round(speech_dur, 3),
+                "source_start": round(float(narr.get("source_start", 0.0)), 3),
             }
             if narr.get("audio") and speech_dur > 0:
                 audio_tracks.append({"shot_id": sh.get("id", f"shot_{idx+1:03d}"),
-                                     "file": narr["audio"], "start": round(g + pad_in, 3)})
+                                     "file": narr["audio"], "start": round(g + pad_in, 3),
+                                     "source_start": round(float(narr.get("source_start", 0.0)), 3),
+                                     "source_duration": round(speech_dur, 3)})
 
         shots_out.append({
             "id": sh.get("id", f"shot_{idx+1:03d}"),
             "page": sh["page"], "page_size": [W, H],
             "motion": motion, "transition_out": transition,
+            "transition_duration": round(transition_duration, 3),
             "global_start": round(g, 3), "duration": round(duration, 3),
             "start_rect": [round(v, 2) for v in start],
             "end_rect": [round(v, 2) for v in end],
@@ -244,7 +262,7 @@ def compile_script(director: dict, root: str = ".") -> dict:
             "settle_at": settle_at,
             "fit": pin_fit,
         })
-        g += duration - overlap_sec(transition, xf)
+        g += duration - transition_duration
 
     total = shots_out[-1]["global_start"] + shots_out[-1]["duration"]
     return {

@@ -1,7 +1,7 @@
 # motion-comic-poc
 
 视觉导演 → 时间轴编译 → 程序化渲染的动态漫视频引擎。
-PoC 阶段已验证视觉定位精度（bbox 偏差 2~5% 画布宽）；v0.2 按评审完成引擎化重构。
+PoC 阶段已验证视觉定位精度（bbox 偏差 2~5% 画布宽）；v0.4 加入非破坏式页级音频同步工作台。
 
 ## 架构
 
@@ -50,6 +50,40 @@ python -m unittest discover -s tests               # 回归测试
    `dubbing_sheet.md`（人工配音/审听时间表）、`render_timeline.json`（全部时间戳的机读源）。
 
 整段录音后想切回分镜？后续可用 whisper 强制对齐，列为 roadmap，不进 v1。
+
+## 阶段②：画面 / 配音同步工作台
+
+完成切图和 TTS 后启动：
+
+```bash
+python gui/timeline_editor.py --work real_manga2
+```
+
+新版工作台把两个时间概念分开显示：
+
+- **源音频轨**：显示整页波形。每个画面片段都有独立入点 / 出点，可拖动两侧手柄；
+- **输出画面轨**：显示成片顺序。紫色区域是语音后的无声停留，红色区域是与下一画面的转场重叠；
+- **页内细分**：同一页拆出的多个 bbox 分别绑定一段解说，画面框、缩略图、文字和时间块联动选择；
+- **非破坏式保存**：原始 IndexTTS 音频不会被裁切覆盖。编辑决定写入
+  `timeline_alignment.json`，并同步更新 `director.json` 的编译字段；
+- **兼容旧产物**：若现有流程仍是“按页生成、静音切成多个 shot wav”，编辑器会把同页 wav
+  在浏览器中拼成连续波形；保存时生成一个独立页级工作副本。
+
+时间映射字段如下：
+
+```json
+{
+  "shot_id": "shot_00_01",
+  "source_start": 3.42,
+  "source_end": 6.88,
+  "gap_after": 0.35,
+  "transition_out": "CROSSFADE",
+  "transition_duration": 0.45
+}
+```
+
+其中 `source_start/source_end` 只决定从页级配音中取哪一段；`gap_after` 会在下一句
+开始前加入留白；`transition_duration` 只控制画面重叠，不会吞掉设定的留白。
 
 ## 目录
 
